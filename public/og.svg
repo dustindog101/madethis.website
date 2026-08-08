@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0d0e13"/>
+  <rect x="48" y="60" width="1104" height="54" rx="8" fill="#ffb23e"/>
+  <rect x="48" y="516" width="1104" height="54" rx="8" fill="#ffb23e"/>
+  <text x="72" y="470" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="30" letter-spacing="8" fill="#9b98a4">TEMPORARY STATIC HOSTING · NO ACCOUNT</text>
+  <text x="68" y="350" font-family="sans-serif" font-weight="700" font-size="118" fill="#e8e3d6">Made this.</text>
+  <text x="68" y="460" font-family="sans-serif" font-weight="700" font-size="118" fill="#ffb23e">Prove it.</text>
+  <rect x="72" y="120" width="420" height="96" rx="8" fill="none" stroke="#ffb23e" stroke-width="3"/>
+  <rect x="84" y="132" width="86" height="24" rx="4" fill="none" stroke="#ffb23e" stroke-width="2"/>
+  <circle cx="850" cy="580" r="26" fill="none" stroke="#ffb23e" stroke-width="4"/>
+  <circle cx="940" cy="580" r="26" fill="none" stroke="#ffb23e" stroke-width="4"/>
+  <circle cx="1030" cy="580" r="26" fill="none" stroke="#ffb23e" stroke-width="4"/>
+</svg>

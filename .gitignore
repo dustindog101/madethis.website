@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+
+# env — secrets live only in .env / Vercel dashboard, never committed
+.env
+.env.*
+!.env.example
+
+# local storage fallback (dev without Vercel Blob)
+.local-blob/
+
+# vercel local link metadata (created by `vercel link`)
+.vercel/
+
+# os / editor
+.DS_Store
+.vscode/
+*.log

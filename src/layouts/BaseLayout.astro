@@ -1,0 +1,85 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "madethis.website — temporary websites, no account",
+  description = "Drag a folder. Get a live link. It expires on its own. Temporary static hosting with zero setup — no account, no build step, free.",
+} = Astro.props;
+
+const SITE = "https://madethis.website";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={SITE + "/"} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={SITE + "/"} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={SITE + "/og.svg"} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0d0e13" />
+  </head>
+  <body>
+    <div class="site">
+      <a class="sr-only" href="#main">Skip to content</a>
+
+      <header class="nav" id="top">
+        <div class="nav__inner">
+          <a class="brand" href="/" aria-label="madethis.website — home">
+            <span class="brand__mark" aria-hidden="true">M</span>
+            <span>made<span class="brand__accent">this</span>.website</span>
+          </a>
+
+          <nav aria-label="Main">
+            <ul class="nav__links">
+              <li><a href="#how">How it works</a></li>
+              <li><a href="#why">Why temporary</a></li>
+              <li><a href="#faq">FAQ</a></li>
+            </ul>
+          </nav>
+
+          <a class="btn btn--primary nav__cta" href="#drop">Drop something</a>
+        </div>
+      </header>
+
+      <main id="main">
+        <slot />
+      </main>
+
+      <footer class="footer">
+        <div class="footer__inner">
+          <div class="footer__note">
+            made<span style="color: var(--amber)">this</span>.website — drop it, share it, let it go
+          </div>
+          <ul class="footer__links">
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="https://github.com/dustindog101/madethis.website" rel="external">Source</a></li>
+          </ul>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      // nav border on scroll
+      const nav = document.querySelector(".nav");
+      const onScroll = () => nav?.classList.toggle("nav--scrolled", window.scrollY > 8);
+      onScroll();
+      addEventListener("scroll", onScroll, { passive: true });
+    </script>
+  </body>
+</html>

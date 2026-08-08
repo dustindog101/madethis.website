@@ -1,0 +1,224 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const faqs = [
+  {
+    q: "How long does a site live?",
+    a: "You pick 1 hour or 24 hours when you drop it. When the clock hits zero the files are deleted from storage — no leftovers, no warnings, no way to get them back. That's the feature.",
+  },
+  {
+    q: "Do I need an account?",
+    a: "No. Drop, get a link, share it. There is no login, no dashboard, nothing to remember. The link is your only key.",
+  },
+  {
+    q: "What can I host?",
+    a: "Anything static: HTML, CSS, JavaScript, images, fonts, PDFs — the output of a build, or plain hand-written pages. Up to 8 MB compressed in a zip, max 500 files. No server code, which is the point: it's static hosting, done somewhere else.",
+  },
+  {
+    q: "What counts as a folder drop?",
+    a: "A folder with an index.html in it is the classic case. Zips work too, and a lone .html file will get wrapped up automatically. Subfolders and their paths are preserved.",
+  },
+  {
+    q: "Why madethis.website and not GitHub Pages?",
+    a: "Because sometimes you just need it now — a demo for a client, a peek for a friend, a prototype before the repo even exists. Pages and Cloudflare Pages are permanent homes; this is a darkroom print. Quick, anonymous, and it goes away on its own.",
+  },
+  {
+    q: "Is there a catch?",
+    a: "The catch is the whole idea: it expires. Files are scrubbed on the timer, and the cleanup cron keeps storage honest. Suppose the site is gone, the URL shows a polite dead-end instead. That's it — that's the product.",
+  },
+];
+---
+
+<BaseLayout>
+  <section class="hero" aria-label="Drop your site">
+    <div>
+      <span class="eyebrow">Temporary static hosting</span>
+      <h1 class="display hero__headline">
+        Made this.
+        <em>Prove it.</em>
+      </h1>
+      <p class="hero__sub">
+        Drop a folder, get a <strong>live link</strong>. No account, no build step,
+        nothing to keep. Your site lives for a while — then it&rsquo;s gone,
+        because the best side proof isn&rsquo;t forever.
+      </p>
+      <div class="hero__cta-row">
+        <a class="btn btn--primary" href="#drop">Drop a folder</a>
+        <a class="btn btn--ghost" href="#how">How it works</a>
+      </div>
+      <ul class="hero__perks">
+        <li>FREE FOREVER</li>
+        <li>NO ACCOUNT</li>
+        <li>HTTPS BY DEFAULT</li>
+        <li>DELETED ON TIME</li>
+      </ul>
+    </div>
+
+    <div class="drop-card" id="drop-anchor">
+      <div class="film-holes" aria-hidden="true"></div>
+      <div class="drop-card__paper">
+        <div class="drop-card__top">
+          <span class="drop-card__rooms mono">
+            <span class="drop-card__room">development room</span>
+          </span>
+          <span class="drop-card__rooms mono">
+            <span class="drop-card__room">no account</span>
+            <span class="drop-card__room">no build</span>
+            <span class="drop-card__room is-on">play</span>
+          </span>
+        </div>
+
+        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop a folder, zip, or HTML file to host it">
+          <span class="drop-zone__hand" aria-hidden="true">👆</span>
+          <h3 id="drop-title">Drop your site here</h3>
+          <p id="drop-sub">A folder, a .zip, or a single .html — that's all it takes.</p>
+          <span class="drop-zone__hint" id="drop-hint">click to browse · drag anywhere</span>
+        </div>
+
+        <div class="ttl-row" role="group" aria-label="How long the site stays live">
+          <button class="ttl-pill" type="button" data-ttl="3600" aria-pressed="false">
+            01:00 <span class="ttl-pill__unit">hour</span>
+          </button>
+          <button class="ttl-pill is-on" type="button" data-ttl="86400" aria-pressed="true">
+            24:00 <span class="ttl-pill__unit">hours</span>
+          </button>
+        </div>
+
+        <div class="drop-progress" id="drop-progress" aria-hidden="true">
+          <div class="progress__label">
+            <span id="progress-stage">packing</span>
+            <span id="progress-pct">0%</span>
+          </div>
+          <div class="progress__track">
+            <div class="progress__bar" id="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="drop-error" id="drop-error" role="alert" aria-live="assertive"></div>
+
+        <div class="result" id="result" aria-live="polite">
+          <div class="result-card">
+            <div class="result__print">
+              <div class="result__thumb" aria-hidden="true">
+                <div class="result__thumb-in">
+                  <small>print no. <span id="result-printno">001</span></small>
+                  <span id="result-slug">developing…</span>
+                </div>
+              </div>
+              <div class="result__meta">
+                <span id="result-files">0 files</span>
+                <span class="countdown" aria-label="time remaining">
+                  <span class="countdown__tick" id="countdown-hh">00</span>:<span class="countdown__tick" id="countdown-mm">00</span>:<span class="countdown__tick" id="countdown-ss">00</span>
+                </span>
+              </div>
+            </div>
+            <div class="result__url">
+              <a class="result__url-link" id="result-url-link" href="#" target="_blank" rel="noopener">
+                <span class="result__url-url" id="result-url">madethis.website/s/…</span>
+              </a>
+              <button class="btn btn--ghost result__copy" id="copy-btn" type="button">Copy</button>
+            </div>
+            <div class="result__actions">
+              <button class="btn btn--primary result__link" id="open-btn" type="button">Open site ↗</button>
+              <button class="btn btn--ghost" id="share-btn" type="button">Share</button>
+              <button class="btn btn--ghost" id="again-btn" type="button">Drop another →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="film-holes" aria-hidden="true"></div>
+    </div>
+
+    <input type="file" id="file-folder" multiple webkitdirectory="" hidden />
+    <input type="file" id="file-file" accept=".zip,.html,.htm" multiple hidden />
+  </section>
+
+  <section class="section" id="drop">
+    <div class="section__head">
+      <span class="eyebrow">The one-step flow</span>
+      <h2 class="display section__title">From zero to URL in four perf frames</h2>
+      <p class="section__lede">
+        The whole product is one gesture. Everything else is table stakes.
+      </p>
+    </div>
+
+    <div class="steps">
+      <article class="step">
+        <div class="step__icon" aria-hidden="true">📦</div>
+        <h3>Drop it</h3>
+        <p>Drag a built folder, a .zip, or a lone .html file onto the card up top. Nothing is uploaded until you drop.</p>
+      </article>
+      <article class="step">
+        <div class="step__icon" aria-hidden="true">🔗</div>
+        <h3>Get a live link</h3>
+        <p>Files queue to storage in the background. Seconds later you get madethis.website/s/… — public, HTTPS, ready to share.</p>
+      </article>
+      <article class="step">
+        <div class="step__icon" aria-hidden="true">⏳</div>
+        <h3>Watch it expire</h3>
+        <p>A countdown runs from the moment it's live. Hit zero and the files are gone — deleted, not just hidden. Living on borrowed time is the feature.</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="ribbon" aria-hidden="true">
+    <div class="ribbon__inner">
+      <span class="ribbon__digits">24:00:00</span>
+      <span class="ribbon__copy">That's the maximum shelf life of anything hosted here.<br />One hour, if you only need to prove a point fast.</span>
+    </div>
+  </div>
+
+  <section class="section" id="why">
+    <div class="section__head">
+      <span class="eyebrow">Why temporary</span>
+      <h2 class="display section__title">Permanence is overrated</h2>
+      <p class="section__lede">
+        Not everything deserves a DNS record that outlives your portfolio. Some
+        things only need to exist long enough to be seen.
+      </p>
+    </div>
+
+    <div class="tiles">
+      <article class="tile">
+        <span class="tile__tag">for demos</span>
+        <h3>Client previews without deployment pipelines</h3>
+        <p>Drop a mockup, send the link, get feedback, and the evidence disappears when it's done. No stale branches haunting the internet.</p>
+      </article>
+      <article class="tile">
+        <span class="tile__tag">for prototypes</span>
+        <h3>Ship the idea, not the infra</h3>
+        <p>An AI-generated landing page or a hand-written one — either way it deserves a URL today, not a cloud account and three hours of clicking.</p>
+      </article>
+      <article class="tile">
+        <span class="tile__tag">for privacy</span>
+        <h3>No account, no profile, no paper trail</h3>
+        <p>Anonymous by default: no email, no signup, no analytics session. The slug you hold is the only record that a site ever existed.</p>
+      </article>
+      <article class="tile">
+        <span class="tile__tag">for the sandbox</span>
+        <h3>Abuse the sandbox, lose the toy</h3>
+        <p>Temporary hosting stays cheap because nothing is permanent. If a link goes bad, it fades in hours instead of being flagged for weeks.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="section__head">
+      <span class="eyebrow">Questions</span>
+      <h2 class="display section__title">Honest answers</h2>
+    </div>
+
+    <div class="faq">
+      {faqs.map(({ q, a }) => (
+        <details class="faq__item">
+          <summary>{q}</summary>
+          <div class="answer">{a}</div>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <script>
+    import "../scripts/uploader";
+  </script>
+</BaseLayout>

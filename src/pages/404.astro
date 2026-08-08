@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="404 — this one never printed" description="Nothing here — this page missed its development slot.">
+  <section class="hero" style="justify-content: flex-start; min-height: 60dvh; padding-top: 96px">
+    <div>
+      <span class="eyebrow">404</span>
+      <h1 class="display hero__headline" style="font-size: clamp(2.4rem, 5vw, 3.6rem)">
+        Nothing printable here.
+      </h1>
+      <p class="hero__sub">
+        The page you wanted doesn't exist — a wrong link, a dropped draft, or an
+        expired site doing exactly what it promised. There's a fresh frame waiting upstairs.
+      </p>
+      <div class="hero__cta-row">
+        <a class="btn btn--primary" href="/#drop">Back to the dropzone</a>
+        <a class="btn btn--ghost" href="/">Home</a>
+      </div>
+    </div>
+    <div class="drop-card" aria-hidden="true">
+      <div class="film-holes"></div>
+      <div class="drop-card__paper" style="padding: 26px 22px; text-align: center">
+        <span class="mono" style="font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(25,26,33,.5)">expired · void · gone</span>
+        <div style="margin-top: 14px; font-family: var(--font-display); font-size: 1.6rem">this space <em style="color: var(--amber); font-style: normal">was</em> taken</div>
+      </div>
+      <div class="film-holes"></div>
+    </div>
+  </section>
+</BaseLayout>
