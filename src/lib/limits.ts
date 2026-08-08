@@ -5,6 +5,12 @@ export const UPLOAD_TTL_OPTIONS = [3600, 86400] as const;
 export const DEFAULT_TTL_SECONDS = 86400;
 export const TMP_LIFETIME_MS = 1000 * 60 * 60;
 
+/** Abuse prevention — enforced via blob-backed counters. */
+export const RATE_GLOBAL_PER_HOUR = 200;
+export const RATE_IP_PER_HOUR = 10;
+export const RATE_IP_PER_DAY = 50;
+export const RATE_CLI_PER_HOUR = 30;
+
 export const SITE_PREFIX = "sites/";
 export const TMP_PREFIX = "tmp/";
 

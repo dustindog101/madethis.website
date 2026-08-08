@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# madethis.website CLI — upload a local HTML file and get a live temporary URL.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: madethis upload <file.html> [options]
+
+Environment:
+  MADETHIS_API_KEY   Required. Your CLI_API_KEY from Vercel env vars.
+  MADETHIS_URL       API base URL (default: https://www.madethis.website)
+
+Options:
+  --ttl 1h|24h       How long the site stays live (default: 24h)
+  --name NAME        Filename inside the zip (default: index.html)
+  --json             Print full JSON response
+  -h, --help         Show this help
+
+Examples:
+  export MADETHIS_API_KEY='your-32-char-or-longer-secret'
+  madethis upload demo.html
+  madethis upload page.html --ttl 1h
+  curl -fsS -X POST "$MADETHIS_URL/api/cli/upload?ttl=3600" \
+    -H "Authorization: Bearer $MADETHIS_API_KEY" \
+    -H "Content-Type: text/html; charset=utf-8" \
+    --data-binary @demo.html
+EOF
+}
+
+BASE_URL="${MADETHIS_URL:-https://www.madethis.website}"
+TTL="86400"
+FILENAME=""
+JSON_OUT=0
+FILE=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    upload)
+      shift
+      [[ $# -gt 0 ]] || { echo "error: missing file after upload" >&2; exit 1; }
+      FILE="$1"
+      shift
+      ;;
+    --ttl)
+      shift
+      case "${1:-}" in
+        1h|3600) TTL="3600" ;;
+        24h|86400|1d) TTL="86400" ;;
+        *) echo "error: --ttl must be 1h or 24h" >&2; exit 1 ;;
+      esac
+      shift
+      ;;
+    --name)
+      shift
+      FILENAME="${1:-}"
+      shift
+      ;;
+    --json) JSON_OUT=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      if [[ -z "$FILE" && -f "$1" ]]; then
+        FILE="$1"
+        shift
+      else
+        echo "error: unknown argument: $1" >&2
+        usage >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+if [[ -z "${MADETHIS_API_KEY:-}" ]]; then
+  echo "error: set MADETHIS_API_KEY (your Vercel CLI_API_KEY)" >&2
+  exit 1
+fi
+
+if [[ -z "$FILE" || ! -f "$FILE" ]]; then
+  echo "error: provide a readable .html file" >&2
+  usage >&2
+  exit 1
+fi
+
+HEADERS=(-H "Authorization: Bearer ${MADETHIS_API_KEY}" -H "Content-Type: text/html; charset=utf-8")
+if [[ -n "$FILENAME" ]]; then
+  HEADERS+=(-H "X-Filename: ${FILENAME}")
+fi
+
+RESP="$(curl -fsS -X POST "${BASE_URL}/api/cli/upload?ttl=${TTL}" "${HEADERS[@]}" --data-binary @"${FILE}")"
+
+if [[ "$JSON_OUT" -eq 1 ]]; then
+  echo "$RESP"
+  exit 0
+fi
+
+URL="$(printf '%s' "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("fullUrl",""))')"
+if [[ -z "$URL" ]]; then
+  # fallback if python one-liner fails on some shells
+  URL="$(printf '%s' "$RESP" | sed -n 's/.*"fullUrl":"\([^"]*\)".*/\1/p')"
+fi
+
+if [[ -z "$URL" ]]; then
+  echo "$RESP"
+  exit 0
+fi
+
+echo "$URL"

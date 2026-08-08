@@ -2,13 +2,17 @@ import type { APIRoute } from "astro";
 import { json, error } from "../../../lib/http";
 import { validUploadId } from "../../../lib/ids";
 import { MAX_CHUNK_BYTES, tmpChunkPath } from "../../../lib/limits";
-import { storage } from "../../../lib/storage";
+import { storage, storageReady } from "../../../lib/storage";
 
 export const prerender = false;
 
 const MAX_CHUNKS_PER_UPLOAD = 64;
 
 export const POST: APIRoute = async ({ request }) => {
+  if (!storageReady()) {
+    return error(503, "storage_unavailable", "Upload storage is not configured or temporarily unavailable.");
+  }
+
   const uploadId = request.headers.get("x-upload-id") ?? "";
   const rawIndex = request.headers.get("x-chunk-index") ?? "";
   if (!validUploadId(uploadId)) return error(400, "invalid_upload_id");
@@ -24,7 +28,9 @@ export const POST: APIRoute = async ({ request }) => {
   if (bytes.byteLength > MAX_CHUNK_BYTES) return error(413, "chunk_too_large");
 
   try {
-    await storage.put(tmpChunkPath(uploadId, index), bytes, "application/octet-stream");
+    await storage.put(tmpChunkPath(uploadId, index), bytes, "application/octet-stream", {
+      allowOverwrite: true,
+    });
   } catch {
     return error(503, "storage_unavailable", "Upload storage is not configured or temporarily unavailable.");
   }

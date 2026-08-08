@@ -1,7 +1,10 @@
 import type { APIRoute } from "astro";
-import { json, error } from "../../../lib/http";
+import { json, error, rateLimited } from "../../../lib/http";
 import { newUploadId } from "../../../lib/ids";
 import { MAX_CHUNK_BYTES, MAX_SITE_ZIP_BYTES, UPLOAD_TTL_OPTIONS } from "../../../lib/limits";
+import { clientIp, hashIp } from "../../../lib/ip";
+import { checkWebUploadLimits, rateLimitHeaders } from "../../../lib/ratelimit";
+import { storageReady } from "../../../lib/storage";
 
 export const prerender = false;
 
@@ -19,6 +22,16 @@ async function readJson<T>(req: Request): Promise<T | null> {
 }
 
 export const POST: APIRoute = async ({ request }) => {
+  if (!storageReady()) {
+    return error(503, "storage_unavailable", "Upload storage is not configured.");
+  }
+
+  const ipHash = hashIp(clientIp(request));
+  const rate = await checkWebUploadLimits(ipHash);
+  if (!rate.ok) {
+    return rateLimited(rate.resetAt);
+  }
+
   const body = await readJson<InitBody>(request);
   if (!body) return error(400, "invalid_json");
   if (typeof body.totalBytes !== "number" || !Number.isFinite(body.totalBytes)) {
@@ -31,8 +44,12 @@ export const POST: APIRoute = async ({ request }) => {
   if (!UPLOAD_TTL_OPTIONS.includes(ttlSeconds)) {
     return error(400, "invalid_ttl");
   }
-  return json({
-    uploadId: newUploadId(),
-    chunkSize: MAX_CHUNK_BYTES,
-  });
+  return json(
+    {
+      uploadId: newUploadId(),
+      chunkSize: MAX_CHUNK_BYTES,
+    },
+    200,
+    rateLimitHeaders(rate),
+  );
 };

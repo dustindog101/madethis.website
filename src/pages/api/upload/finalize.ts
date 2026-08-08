@@ -1,17 +1,15 @@
 import { createHash } from "node:crypto";
 import type { APIRoute } from "astro";
 import { json, error } from "../../../lib/http";
-import { validUploadId, newSlug } from "../../../lib/ids";
+import { validUploadId } from "../../../lib/ids";
 import {
   MAX_CHUNK_BYTES,
-  MAX_FILES_PER_SITE,
   MAX_SITE_ZIP_BYTES,
   UPLOAD_TTL_OPTIONS,
   tmpChunkPath,
 } from "../../../lib/limits";
-import { storage } from "../../../lib/storage";
-import { readZipEntries } from "../../../lib/zip";
-import { createSite, readSiteMeta, resolveHomepage } from "../../../lib/site";
+import { storage, storageReady } from "../../../lib/storage";
+import { publishSiteFromZip } from "../../../lib/publish";
 
 export const prerender = false;
 
@@ -25,6 +23,10 @@ interface FinalizeBody {
 const MAX_TOTAL_CHUNKS = 64;
 
 export const POST: APIRoute = async ({ request }) => {
+  if (!storageReady()) {
+    return error(503, "storage_unavailable", "Upload storage is not configured.");
+  }
+
   let body: FinalizeBody;
   try {
     body = (await request.json()) as FinalizeBody;
@@ -69,47 +71,37 @@ export const POST: APIRoute = async ({ request }) => {
     return error(422, "checksum_mismatch");
   }
 
-  const entries = readZipEntries(zipBytes, MAX_FILES_PER_SITE);
-  if (!entries) {
+  try {
+    const published = await publishSiteFromZip(zipBytes, ttlSeconds);
     await cleanupChunks(body.uploadId, totalChunks);
-    return error(422, "not_a_zip", "That file isn't a readable ZIP archive.");
-  }
-  if (entries.length === 0) {
+    return json({
+      ok: true,
+      slug: published.slug,
+      url: published.url,
+      expiresAt: published.expiresAt,
+      files: published.files,
+      homepage: published.homepage,
+    });
+  } catch (err) {
     await cleanupChunks(body.uploadId, totalChunks);
-    return error(422, "empty_site", "The archive contains no files.");
-  }
-  if (entries.length > MAX_FILES_PER_SITE) {
-    await cleanupChunks(body.uploadId, totalChunks);
-    return error(422, "too_many_files", `Sites are limited to ${MAX_FILES_PER_SITE} files.`);
-  }
-
-  const homepage = resolveHomepage(entries);
-
-  let slug = "";
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const candidate = newSlug();
-    const existing = await readSiteMeta(candidate);
-    if (!existing) {
-      slug = candidate;
-      break;
+    const message = err instanceof Error ? err.message : "publish_failed";
+    if (message === "not_a_zip") {
+      return error(422, "not_a_zip", "That file isn't a readable ZIP archive.");
     }
+    if (message === "empty_site") {
+      return error(422, "empty_site", "The archive contains no files.");
+    }
+    if (message === "too_many_files") {
+      return error(422, "too_many_files", "Sites are limited to 500 files.");
+    }
+    if (message === "site_too_large") {
+      return error(413, "site_too_large");
+    }
+    if (message === "no_slug_available") {
+      return error(503, "no_slug_available");
+    }
+    return error(503, "publish_failed");
   }
-  if (!slug) {
-    await cleanupChunks(body.uploadId, totalChunks);
-    return error(503, "no_slug_available");
-  }
-
-  const meta = await createSite(slug, zipBytes, ttlSeconds, entries.length, homepage);
-  await cleanupChunks(body.uploadId, totalChunks);
-
-  return json({
-    ok: true,
-    slug,
-    url: `/s/${slug}/`,
-    expiresAt: meta.expiresAt,
-    files: meta.files,
-    homepage: meta.homepage,
-  });
 };
 
 async function cleanupChunks(uploadId: string, totalChunks: number): Promise<void> {

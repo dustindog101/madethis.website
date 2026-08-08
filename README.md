@@ -39,7 +39,35 @@ vercel deploy --prod
 
 Connect the `madethis.website` domain + a Blob store in the dashboard.
 Add `CRON_SECRET` if you want the cleanup cron locked down (cron is wired
-in `vercel.json`).
+in `vercel.json`). Set `CLI_API_KEY` (32+ chars) to enable the CLI upload API.
+
+## CLI upload (HTML files)
+
+Generate a key and add it to Vercel env vars as `CLI_API_KEY`:
+
+```bash
+openssl rand -hex 32
+```
+
+Upload from your terminal:
+
+```bash
+export MADETHIS_API_KEY='your-key-here'
+chmod +x scripts/madethis
+./scripts/madethis upload path/to/page.html --ttl 1h
+```
+
+Or with curl:
+
+```bash
+curl -fsS -X POST "https://www.madethis.website/api/cli/upload?ttl=3600" \
+  -H "Authorization: Bearer $MADETHIS_API_KEY" \
+  -H "Content-Type: text/html; charset=utf-8" \
+  --data-binary @page.html
+```
+
+Rate limits (all uploads): 200/hour global, 10/hour per IP on the web UI,
+30/hour per IP on CLI, 50/day per IP. Returns `429` with `Retry-After` when exceeded.
 
 ## Architecture
 
