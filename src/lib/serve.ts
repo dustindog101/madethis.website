@@ -8,7 +8,7 @@ export function siteBaseHref(slug: string): string {
 export function maybeTrailingSlashRedirect(requestUrl: URL, rawPath: string): Response | null {
   if (rawPath && rawPath !== "") return null;
   if (requestUrl.pathname.endsWith("/")) return null;
-  const target = `${requestUrl.pathname}/${requestUrl.search}`;
+  const target = new URL(requestUrl.pathname + "/" + requestUrl.search, requestUrl.origin);
   return Response.redirect(target, 308);
 }
 
