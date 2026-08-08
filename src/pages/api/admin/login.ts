@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { json, error } from "../../../lib/http";
-import { verifyAdminPassword } from "../../../lib/admin";
-import { adminConfigured, createSessionToken, sessionCookieHeader } from "../../../lib/session";
+import { verifyAdminPassword, hasAdminAuth } from "../../../lib/admin-auth";
+import { createSessionToken, sessionCookieHeader } from "../../../lib/session";
 import { ensureApiKey } from "../../../lib/apikey";
 
 export const prerender = false;
@@ -12,8 +12,8 @@ interface LoginBody {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  if (!adminConfigured()) {
-    return error(503, "admin_disabled", "Admin login is not configured.");
+  if (!(await hasAdminAuth())) {
+    return error(503, "admin_disabled", "Create an admin account first.");
   }
 
   let body: LoginBody;
@@ -25,18 +25,14 @@ export const POST: APIRoute = async ({ request }) => {
 
   const username = body.username ?? "";
   const password = body.password ?? "";
-  if (!verifyAdminPassword(username, password)) {
+  if (!(await verifyAdminPassword(username, password))) {
     return error(401, "invalid_credentials", "Invalid username or password.");
   }
 
-  const token = createSessionToken();
+  const token = await createSessionToken();
   if (!token) return error(503, "session_unavailable");
 
   await ensureApiKey();
 
-  return json(
-    { ok: true },
-    200,
-    { "Set-Cookie": sessionCookieHeader(token) },
-  );
+  return json({ ok: true }, 200, { "Set-Cookie": sessionCookieHeader(token) });
 };

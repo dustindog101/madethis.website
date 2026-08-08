@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, url }) => {
     return error(503, "storage_unavailable", "Blob storage is not configured.");
   }
 
-  const hasSession = isAdminSession(request);
+  const hasSession = await isAdminSession(request);
   const hasKey = await verifyCliApiKey(request);
   if (!hasSession && !hasKey) {
     const enabled = await cliUploadEnabled();

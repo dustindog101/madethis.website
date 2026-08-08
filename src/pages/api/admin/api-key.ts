@@ -6,7 +6,7 @@ import { ensureApiKey, getApiKeyMeta, maskApiKey, rotateApiKey } from "../../../
 export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
-  if (!requireAdmin(request)) {
+  if (!(await requireAdmin(request))) {
     return error(401, "unauthorized");
   }
 
@@ -20,7 +20,7 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const POST: APIRoute = async ({ request }) => {
-  if (!requireAdmin(request)) {
+  if (!(await requireAdmin(request))) {
     return error(401, "unauthorized");
   }
 

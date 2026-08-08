@@ -48,10 +48,10 @@ Set these in Vercel env vars:
 | Variable | Purpose |
 |----------|---------|
 | `ADMIN_USERNAME` | Login username (default: `admin`) |
-| `ADMIN_PASSWORD` | Login password (**8+ chars** — this is all you need) |
-| `SESSION_SECRET` | Optional — auto-derived from password if omitted |
+| `ADMIN_PASSWORD` | Optional — or create admin at `/admin` on first visit |
+| `SESSION_SECRET` | Optional — auto-derived if omitted |
 
-Redeploy after saving env vars.
+Redeploy after saving env vars — or skip env vars entirely and create admin at `/admin` on first visit.
 
 1. Visit the faint **·** link in the site footer → `/admin`
 2. Sign in → view, copy, or regenerate your API key

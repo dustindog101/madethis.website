@@ -1,9 +1,10 @@
 ---
 import "../../styles/global.css";
-import { adminConfigured, isAdminSession } from "../../lib/session";
+import { hasAdminAuth } from "../../lib/admin-auth";
+import { isAdminSession } from "../../lib/session";
 
-const authed = isAdminSession(Astro.request);
-const configured = adminConfigured();
+const configured = await hasAdminAuth();
+const authed = await isAdminSession(Astro.request);
 ---
 
 <!doctype html>
@@ -24,8 +25,24 @@ const configured = adminConfigured();
 
       {!configured ? (
         <section class="admin__card">
-          <h1>Admin not configured</h1>
-          <p>Set <code>ADMIN_PASSWORD</code> (8+ characters) in your Vercel env vars, then redeploy. Username defaults to <code>admin</code>.</p>
+          <h1>Create admin</h1>
+          <p class="admin__lede">First visit only — pick a username and password. No Vercel env vars required.</p>
+          <form class="admin__form" id="setup-form">
+            <label>
+              <span>Username</span>
+              <input name="username" type="text" value="admin" autocomplete="username" required />
+            </label>
+            <label>
+              <span>Password</span>
+              <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <label>
+              <span>Confirm password</span>
+              <input name="confirm" type="password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <p class="admin__error" id="setup-error" hidden></p>
+            <button class="btn btn--primary" type="submit">Create admin &amp; continue</button>
+          </form>
         </section>
       ) : !authed ? (
         <section class="admin__card">
@@ -87,6 +104,30 @@ const configured = adminConfigured();
     </main>
 
     <script>
+      const setupForm = document.getElementById("setup-form");
+      const setupError = document.getElementById("setup-error");
+      setupForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        setupError.hidden = true;
+        const data = new FormData(setupForm);
+        const res = await fetch("/api/admin/setup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: data.get("username"),
+            password: data.get("password"),
+            confirm: data.get("confirm"),
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          setupError.textContent = body?.error?.message ?? "Setup failed.";
+          setupError.hidden = false;
+          return;
+        }
+        location.reload();
+      });
+
       const loginForm = document.getElementById("login-form");
       const loginError = document.getElementById("login-error");
       loginForm?.addEventListener("submit", async (e) => {

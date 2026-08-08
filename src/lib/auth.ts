@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { getStoredApiKey } from "./apikey.js";
-import { adminConfigured } from "./session.js";
+import { hasAdminAuth } from "./admin-auth.js";
 
 const MIN_KEY_LENGTH = 32;
 
@@ -20,11 +20,11 @@ function extractBearer(request: Request): string | null {
   return token.length > 0 ? token : null;
 }
 
-/** CLI is available when an env key exists, admin is configured, or a blob-stored key exists. */
+/** CLI is available when an env key exists, admin exists, or a blob-stored key exists. */
 export async function cliUploadEnabled(): Promise<boolean> {
   const envKey = process.env.CLI_API_KEY;
   if (typeof envKey === "string" && envKey.length >= MIN_KEY_LENGTH) return true;
-  if (adminConfigured()) return true;
+  if (await hasAdminAuth()) return true;
   const stored = await getStoredApiKey();
   return typeof stored === "string" && stored.length >= MIN_KEY_LENGTH;
 }
