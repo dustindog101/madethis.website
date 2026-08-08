@@ -1,5 +1,38 @@
 import { isMarkdownPath, markdownViewerHtml } from "./markdown-viewer.js";
 
+export function siteBaseHref(slug: string): string {
+  return `/s/${slug}/`;
+}
+
+/** Bare `/s/{slug}` URLs break relative asset paths — redirect to trailing slash. */
+export function maybeTrailingSlashRedirect(requestUrl: URL, rawPath: string): Response | null {
+  if (rawPath && rawPath !== "") return null;
+  if (requestUrl.pathname.endsWith("/")) return null;
+  const target = `${requestUrl.pathname}/${requestUrl.search}`;
+  return Response.redirect(target, 308);
+}
+
+/** Ensures relative `./assets/...` links resolve under the site slug regardless of URL shape. */
+export function injectSiteBaseTag(htmlBytes: Uint8Array, baseHref: string): Uint8Array {
+  const html = new TextDecoder().decode(htmlBytes);
+  if (/<base\s[\s>]/i.test(html)) return htmlBytes;
+  const tag = `<base href="${baseHref}">`;
+  const headMatch = html.match(/<head(\s[^>]*)?>/i);
+  let patched: string;
+  if (headMatch?.index !== undefined) {
+    const insertAt = headMatch.index + headMatch[0].length;
+    patched = html.slice(0, insertAt) + tag + html.slice(insertAt);
+  } else {
+    patched = tag + html;
+  }
+  return new TextEncoder().encode(patched);
+}
+
+export function isSiteHtmlPath(pathname: string): boolean {
+  const lower = pathname.toLowerCase();
+  return lower.endsWith(".html") || lower.endsWith(".htm");
+}
+
 export function resolveEntry(pathnames: string[], urlPath: string): string | null {
   if (pathnames.includes(urlPath)) return urlPath;
   const indexChild = urlPath ? `${urlPath}/index.html` : "index.html";

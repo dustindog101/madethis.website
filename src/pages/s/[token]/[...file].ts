@@ -4,7 +4,7 @@ import { validSlug } from "../../../lib/ids";
 import { safeSitePath, contentTypeFor } from "../../../lib/mime";
 import { readZipEntries } from "../../../lib/zip";
 import { MAX_FILES_PER_SITE } from "../../../lib/limits";
-import { resolveEntry, maybeMarkdownViewerResponse } from "../../../lib/serve";
+import { resolveEntry, maybeMarkdownViewerResponse, maybeTrailingSlashRedirect, injectSiteBaseTag, siteBaseHref, isSiteHtmlPath } from "../../../lib/serve";
 
 export const prerender = false;
 
@@ -59,6 +59,9 @@ export const GET: APIRoute = async ({ request, params }) => {
   const url = new URL(request.url);
   const wantsRaw = url.searchParams.get("raw") === "1";
 
+  const slashRedirect = maybeTrailingSlashRedirect(url, rawPath);
+  if (slashRedirect) return slashRedirect;
+
   if (request.method !== "GET" && request.method !== "HEAD") {
     return new Response(null, { status: 405, headers: { Allow: "GET, HEAD" } });
   }
@@ -109,11 +112,16 @@ export const GET: APIRoute = async ({ request, params }) => {
   const remainingSeconds = Math.max(0, Math.floor((meta.expiresAt - Date.now()) / 1000));
   const cacheSeconds = Math.min(3600, remainingSeconds);
 
-  return new Response(wanted.data, {
+  let body: Uint8Array = wanted.data;
+  if (isSiteHtmlPath(wanted.pathname)) {
+    body = injectSiteBaseTag(body, siteBaseHref(slug));
+  }
+
+  return new Response(body, {
     status: 200,
     headers: {
       "Content-Type": contentType,
-      "Content-Length": String(wanted.data.length),
+      "Content-Length": String(body.length),
       "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}`,
       "X-Content-Type-Options": "nosniff",
       "X-Robots-Tag": "noindex, nofollow",
