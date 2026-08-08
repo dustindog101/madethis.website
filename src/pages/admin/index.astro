@@ -104,7 +104,7 @@ const authed = await isAdminSession(Astro.request);
             <h3>Chunked upload (folders / zips)</h3>
             <pre class="admin__code"><code>POST /api/upload/init     → uploadId
 POST /api/upload/chunk    → raw bytes (≤3 MB each)
-POST /api/upload/finalize → slug + /s/{slug}/ URL</code></pre>
+POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
 
             <h3>Styled HTML plan example</h3>
             <pre class="admin__code"><code>curl -fsS -X POST ".../api/cli/upload?ttl=24h" \
