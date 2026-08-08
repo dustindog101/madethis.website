@@ -227,7 +227,6 @@ async function buildZip(files: RawFile[]): Promise<Blob> {
   if (isSingle) {
     const name = files[0].name.toLowerCase();
     if (name.endsWith(".zip")) return files[0].file;
-    if (name.endsWith(".html") || name.endsWith(".htm")) return files[0].file;
   }
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();

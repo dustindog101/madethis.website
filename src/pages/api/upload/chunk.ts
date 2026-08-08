@@ -23,6 +23,10 @@ export const POST: APIRoute = async ({ request }) => {
   if (bytes.byteLength === 0) return error(400, "empty_chunk");
   if (bytes.byteLength > MAX_CHUNK_BYTES) return error(413, "chunk_too_large");
 
-  await storage.put(tmpChunkPath(uploadId, index), bytes, "application/octet-stream");
+  try {
+    await storage.put(tmpChunkPath(uploadId, index), bytes, "application/octet-stream");
+  } catch {
+    return error(503, "storage_unavailable", "Upload storage is not configured or temporarily unavailable.");
+  }
   return json({ ok: true, index }, 201);
 };
