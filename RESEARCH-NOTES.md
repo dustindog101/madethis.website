@@ -24,7 +24,7 @@ Companion product: cybershare.dev (Astro 7, Geist fonts) — stack matched.
 - Vercel Blob SDK (@vercel/blob 2.x): `put/get/del/list`, `addRandomSuffix:
   false`, private access, store via `BLOB_READ_WRITE_TOKEN` or OIDC +
   `BLOB_STORE_ID`. Verified from using-blob-sdk docs.
-- Cron jobs exist on Vercel (vercel.json `"crons"`) — runs every 4h to
+- Cron jobs exist on Vercel (vercel.json `"crons"`) — runs once daily to
   hard-delete expired sites; serve route also refuses past-expiry content.
 
 ## Storage decisions made here (own reasoning, noted for future review)

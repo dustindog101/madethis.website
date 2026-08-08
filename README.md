@@ -60,7 +60,7 @@ are 3 MB. Sites capped at **8 MB packed**, **500 files**.
 
 - Free, anonymous, no account — anything you can build gets the same
   first-class treatment: 1h/24h TTL.
-- Expired sites are hard-deleted (cron every 4h; the serve route also
+- Expired sites are hard-deleted (cleanup cron once daily; the serve route also
   refuses anything past expiry), then 404 brand page.
 - `robots.txt` blocks crawling of `/s/` and `/api/`.
 
