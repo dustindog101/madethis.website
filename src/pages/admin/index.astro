@@ -82,22 +82,38 @@ const authed = await isAdminSession(Astro.request);
 
           <p class="admin__meta" id="key-meta"></p>
 
-          <div class="admin__examples">
-            <h2>CLI examples</h2>
-            <pre class="admin__code"><code id="curl-example">export MADETHIS_API_KEY='…'
-./scripts/madethis upload page.html --ttl 1h
-./scripts/madethis upload site.zip
-./scripts/madethis upload notes.md</code></pre>
+          <div class="admin__formats">
+            <h2>What renders in the browser</h2>
+            <ul>
+              <li><code>.html</code> + <code>.css</code> + <code>.js</code> — full static frontends (relative paths work)</li>
+              <li><code>.md</code> — auto-rendered with clean typography (add <code>?raw=1</code> for source)</li>
+              <li><code>.zip</code> — packed sites with assets, fonts, images</li>
+            </ul>
           </div>
 
-          <div class="admin__formats">
-            <h2>Supported uploads</h2>
-            <ul>
-              <li><code>.html</code> / <code>.htm</code> — single pages</li>
-              <li><code>.md</code> — markdown (served as text/markdown)</li>
-              <li><code>.js</code> / <code>.css</code> — auto-wrapped with a shell <code>index.html</code></li>
-              <li><code>.zip</code> — full static sites (HTML + JS + CSS assets)</li>
-            </ul>
+          <div class="admin__examples">
+            <h2>API quick reference</h2>
+            <p class="admin__lede">Full docs: <a href="/docs/api">/docs/api</a></p>
+
+            <h3>CLI upload (single request)</h3>
+            <pre class="admin__code"><code id="curl-cli">curl -fsS -X POST "https://www.madethis.website/api/cli/upload?ttl=1h" \
+  -H "Authorization: Bearer $MADETHIS_API_KEY" \
+  -H "Content-Type: text/html; charset=utf-8" \
+  --data-binary @plan.html</code></pre>
+
+            <h3>Chunked upload (folders / zips)</h3>
+            <pre class="admin__code"><code>POST /api/upload/init     → uploadId
+POST /api/upload/chunk    → raw bytes (≤3 MB each)
+POST /api/upload/finalize → slug + /s/{slug}/ URL</code></pre>
+
+            <h3>Styled HTML plan example</h3>
+            <pre class="admin__code"><code>curl -fsS -X POST ".../api/cli/upload?ttl=24h" \
+  -H "Authorization: Bearer $MADETHIS_API_KEY" \
+  -H "Content-Type: text/html" \
+  --data-binary @styled-plan.html
+
+# Or zip a whole folder:
+./scripts/madethis upload dist.zip --ttl 24h</code></pre>
           </div>
         </section>
       )}
@@ -153,7 +169,6 @@ const authed = await isAdminSession(Astro.request);
 
       const keyEl = document.getElementById("api-key");
       const keyMeta = document.getElementById("key-meta");
-      const curlExample = document.getElementById("curl-example");
       let fullKey = "";
       let revealed = false;
 
@@ -174,8 +189,9 @@ const authed = await isAdminSession(Astro.request);
         if (keyMeta) {
           keyMeta.textContent = `Created ${new Date(data.createdAt).toLocaleString()}`;
         }
-        if (curlExample) {
-          curlExample.textContent = `export MADETHIS_API_KEY='${fullKey}'\n./scripts/madethis upload page.html --ttl 1h\n./scripts/madethis upload site.zip\n./scripts/madethis upload notes.md`;
+        const curlCli = document.getElementById("curl-cli");
+        if (curlCli) {
+          curlCli.textContent = `curl -fsS -X POST "https://www.madethis.website/api/cli/upload?ttl=1h" \\\n  -H "Authorization: Bearer ${fullKey}" \\\n  -H "Content-Type: text/html; charset=utf-8" \\\n  --data-binary @plan.html`;
         }
       }
 

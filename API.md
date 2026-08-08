@@ -203,7 +203,7 @@ Get your key: sign in at [/admin](https://www.madethis.website/admin) (footer **
 | File type | Content-Type | Behavior |
 |-----------|--------------|----------|
 | `.html` / `.htm` | `text/html` | Served directly |
-| `.md` | `text/markdown` | Served as markdown |
+| `.md` | `text/markdown` | Rendered in-browser with clean typography; append `?raw=1` for source |
 | `.js` / `.mjs` | `text/javascript` | Auto-wraps with shell `index.html` |
 | `.css` | `text/css` | Auto-wraps with shell `index.html` |
 | `.zip` | `application/zip` | Full static site (HTML + assets) |
@@ -277,9 +277,12 @@ export MADETHIS_API_KEY='your-key'
 GET /s/{slug}/
 GET /s/{slug}/path/to/file.css
 GET /s/{slug}/about.html
+GET /s/{slug}/readme.md?raw=1
 ```
 
 - Root `/s/{slug}/` serves `index.html`, `index.htm`, or `index.md` (first found).
+- **HTML/JS/CSS** are served with correct MIME types and run in the browser.
+- **Markdown** (`.md`) is rendered client-side with clean typography; append `?raw=1` to fetch the source text.
 - Expired sites return **410** with a branded HTML page.
 - Unknown slug returns **404**.
 

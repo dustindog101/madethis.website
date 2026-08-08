@@ -4,6 +4,7 @@ import { validSlug } from "../../../lib/ids";
 import { safeSitePath, contentTypeFor } from "../../../lib/mime";
 import { readZipEntries } from "../../../lib/zip";
 import { MAX_FILES_PER_SITE } from "../../../lib/limits";
+import { resolveEntry, maybeMarkdownViewerResponse } from "../../../lib/serve";
 
 export const prerender = false;
 
@@ -52,20 +53,11 @@ function brandedPage(title: string, message: string, status: number, extra?: str
   });
 }
 
-function resolveEntry(pathnames: string[], urlPath: string): string | null {
-  if (pathnames.includes(urlPath)) return urlPath;
-  const indexChild = urlPath ? `${urlPath}/index.html` : "index.html";
-  if (pathnames.includes(indexChild)) return indexChild;
-  const html = `${urlPath}.html`;
-  if (pathnames.includes(html)) return html;
-  const htm = `${urlPath}.htm`;
-  if (pathnames.includes(htm)) return htm;
-  return null;
-}
-
 export const GET: APIRoute = async ({ request, params }) => {
   const slug = params.token ?? "";
   const rawPath = (params.file ?? "").toString();
+  const url = new URL(request.url);
+  const wantsRaw = url.searchParams.get("raw") === "1";
 
   if (request.method !== "GET" && request.method !== "HEAD") {
     return new Response(null, { status: 405, headers: { Allow: "GET, HEAD" } });
@@ -109,6 +101,9 @@ export const GET: APIRoute = async ({ request, params }) => {
   if (!wanted) {
     return brandedPage("Nothing at that path.", "The site exists, but this page doesn't. Custom 404.html pages are on the roadmap.", 404);
   }
+
+  const mdView = maybeMarkdownViewerResponse(slug, wanted.pathname, wantsRaw, request.method);
+  if (mdView) return mdView;
 
   const contentType = contentTypeFor(wanted.pathname);
   const remainingSeconds = Math.max(0, Math.floor((meta.expiresAt - Date.now()) / 1000));

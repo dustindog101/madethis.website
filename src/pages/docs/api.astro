@@ -72,7 +72,9 @@ Content-Type: application/json
         <h2 id="serve">Serving</h2>
         <pre class="admin__code"><code>GET /s/&#123;slug&#125;/
 GET /s/&#123;slug&#125;/app.js
-GET /s/&#123;slug&#125;/about.html</code></pre>
+GET /s/&#123;slug&#125;/about.html
+GET /s/&#123;slug&#125;/readme.md?raw=1</code></pre>
+        <p>HTML, JS, and CSS render in the browser. Markdown files get a built-in viewer (headings, code blocks, links). Use <code>?raw=1</code> for the source text.</p>
         <p>Expired → 410. Missing → 404.</p>
 
         <h2 id="limits">Limits</h2>
