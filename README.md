@@ -39,35 +39,38 @@ vercel deploy --prod
 
 Connect the `madethis.website` domain + a Blob store in the dashboard.
 Add `CRON_SECRET` if you want the cleanup cron locked down (cron is wired
-in `vercel.json`). Set `CLI_API_KEY` (32+ chars) to enable the CLI upload API.
+in `vercel.json`).
 
-## CLI upload (HTML files)
+## Admin + CLI upload
 
-Generate a key and add it to Vercel env vars as `CLI_API_KEY`:
-
-```bash
-openssl rand -hex 32
-```
-
-Upload from your terminal:
+Set these in Vercel env vars:
 
 ```bash
-export MADETHIS_API_KEY='your-key-here'
-chmod +x scripts/madethis
-./scripts/madethis upload path/to/page.html --ttl 1h
+openssl rand -hex 32   # SESSION_SECRET
+# pick a strong ADMIN_PASSWORD
 ```
 
-Or with curl:
+| Variable | Purpose |
+|----------|---------|
+| `ADMIN_USERNAME` | Login username (default: `admin`) |
+| `ADMIN_PASSWORD` | Login password (8+ chars) |
+| `SESSION_SECRET` | Signs admin cookies (32+ chars) |
+
+1. Visit the faint **·** link in the site footer → `/admin`
+2. Sign in → view, copy, or regenerate your API key
+3. Use the key in your terminal:
 
 ```bash
-curl -fsS -X POST "https://www.madethis.website/api/cli/upload?ttl=3600" \
-  -H "Authorization: Bearer $MADETHIS_API_KEY" \
-  -H "Content-Type: text/html; charset=utf-8" \
-  --data-binary @page.html
+export MADETHIS_API_KEY='key-from-admin-panel'
+./scripts/madethis upload page.html --ttl 1h
+./scripts/madethis upload notes.md
+./scripts/madethis upload app.js
+./scripts/madethis upload dist.zip
 ```
 
-Rate limits (all uploads): 200/hour global, 10/hour per IP on the web UI,
-30/hour per IP on CLI, 50/day per IP. Returns `429` with `Retry-After` when exceeded.
+CLI accepts `.html`, `.md`, `.js`/`.css` (auto-wrapped with `index.html`), and `.zip` static sites up to 8 MB.
+
+Rate limits: 200/hour global, 30/hour per IP on CLI, 50/day per IP. Returns `429` with `Retry-After` when exceeded.
 
 ## Architecture
 

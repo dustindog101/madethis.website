@@ -17,6 +17,7 @@ export function resolveHomepage(entries: ZipEntry[]): string | null {
   const byName = (name: string) => roots.find((e) => e.pathname === name);
   if (byName("index.html")) return "index.html";
   if (byName("index.htm")) return "index.htm";
+  if (byName("index.md")) return "index.md";
   if (roots.length > 0) return roots[0].pathname;
   return null;
 }

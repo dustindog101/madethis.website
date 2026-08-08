@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
-# madethis.website CLI — upload a local HTML file and get a live temporary URL.
+# madethis.website CLI — upload HTML, Markdown, JS/CSS, or ZIP static sites.
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: madethis upload <file.html> [options]
+Usage: madethis upload <file> [options]
 
 Environment:
-  MADETHIS_API_KEY   Required. Your CLI_API_KEY from Vercel env vars.
+  MADETHIS_API_KEY   API key from https://www.madethis.website/admin (after login)
   MADETHIS_URL       API base URL (default: https://www.madethis.website)
 
 Options:
   --ttl 1h|24h       How long the site stays live (default: 24h)
-  --name NAME        Filename inside the zip (default: index.html)
+  --name NAME        Filename inside the zip (for single-file uploads)
   --json             Print full JSON response
   -h, --help         Show this help
 
+Supported files:
+  .html .htm .md .js .mjs .css .zip (full static sites)
+
 Examples:
-  export MADETHIS_API_KEY='your-32-char-or-longer-secret'
-  madethis upload demo.html
-  madethis upload page.html --ttl 1h
-  curl -fsS -X POST "$MADETHIS_URL/api/cli/upload?ttl=3600" \
-    -H "Authorization: Bearer $MADETHIS_API_KEY" \
-    -H "Content-Type: text/html; charset=utf-8" \
-    --data-binary @demo.html
+  madethis upload demo.html --ttl 1h
+  madethis upload notes.md
+  madethis upload app.js
+  madethis upload dist.zip
 EOF
 }
 
@@ -71,19 +71,32 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "${MADETHIS_API_KEY:-}" ]]; then
-  echo "error: set MADETHIS_API_KEY (your Vercel CLI_API_KEY)" >&2
+  echo "error: set MADETHIS_API_KEY — log in at ${BASE_URL}/admin to get one" >&2
   exit 1
 fi
 
 if [[ -z "$FILE" || ! -f "$FILE" ]]; then
-  echo "error: provide a readable .html file" >&2
+  echo "error: provide a readable file" >&2
   usage >&2
   exit 1
 fi
 
-HEADERS=(-H "Authorization: Bearer ${MADETHIS_API_KEY}" -H "Content-Type: text/html; charset=utf-8")
+EXT="${FILE##*.}"
+EXT_LOWER="$(printf '%s' "$EXT" | tr '[:upper:]' '[:lower:]')"
+case "$EXT_LOWER" in
+  zip) CT="application/zip" ;;
+  md|markdown) CT="text/markdown; charset=utf-8" ;;
+  html|htm) CT="text/html; charset=utf-8" ;;
+  js|mjs) CT="text/javascript; charset=utf-8" ;;
+  css) CT="text/css; charset=utf-8" ;;
+  *) CT="application/octet-stream" ;;
+esac
+
+HEADERS=(-H "Authorization: Bearer ${MADETHIS_API_KEY}" -H "Content-Type: ${CT}")
 if [[ -n "$FILENAME" ]]; then
   HEADERS+=(-H "X-Filename: ${FILENAME}")
+elif [[ -z "$FILENAME" ]]; then
+  HEADERS+=(-H "X-Filename: $(basename "$FILE")")
 fi
 
 RESP="$(curl -fsS -X POST "${BASE_URL}/api/cli/upload?ttl=${TTL}" "${HEADERS[@]}" --data-binary @"${FILE}")"
@@ -95,7 +108,6 @@ fi
 
 URL="$(printf '%s' "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("fullUrl",""))')"
 if [[ -z "$URL" ]]; then
-  # fallback if python one-liner fails on some shells
   URL="$(printf '%s' "$RESP" | sed -n 's/.*"fullUrl":"\([^"]*\)".*/\1/p')"
 fi
 

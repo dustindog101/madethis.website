@@ -1,0 +1,172 @@
+---
+import "../../styles/global.css";
+import { adminConfigured, isAdminSession } from "../../lib/session";
+
+const authed = isAdminSession(Astro.request);
+const configured = adminConfigured();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Admin — madethis.website</title>
+    <meta name="color-scheme" content="dark" />
+  </head>
+  <body class="admin-page">
+    <main class="admin">
+      <header class="admin__head">
+        <a class="admin__brand" href="/">madethis.website</a>
+        <span class="admin__tag">admin</span>
+      </header>
+
+      {!configured ? (
+        <section class="admin__card">
+          <h1>Admin not configured</h1>
+          <p>Set <code>ADMIN_PASSWORD</code> and <code>SESSION_SECRET</code> (32+ chars each) in your Vercel env vars, then redeploy.</p>
+        </section>
+      ) : !authed ? (
+        <section class="admin__card">
+          <h1>Sign in</h1>
+          <p class="admin__lede">CLI uploads and API key management live here — not linked from the main nav.</p>
+          <form class="admin__form" id="login-form">
+            <label>
+              <span>Username</span>
+              <input name="username" type="text" autocomplete="username" required />
+            </label>
+            <label>
+              <span>Password</span>
+              <input name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <p class="admin__error" id="login-error" hidden></p>
+            <button class="btn btn--primary" type="submit">Sign in</button>
+          </form>
+        </section>
+      ) : (
+        <section class="admin__card">
+          <div class="admin__row">
+            <h1>API key</h1>
+            <button class="btn btn--ghost" id="logout-btn" type="button">Sign out</button>
+          </div>
+          <p class="admin__lede">
+            Use this key in your terminal for CLI uploads. The public dropzone does not need it.
+          </p>
+
+          <div class="admin__keybox">
+            <code id="api-key" class="admin__key">loading…</code>
+            <div class="admin__key-actions">
+              <button class="btn btn--ghost" id="reveal-btn" type="button">Reveal</button>
+              <button class="btn btn--ghost" id="copy-btn" type="button">Copy</button>
+              <button class="btn btn--primary" id="rotate-btn" type="button">Regenerate</button>
+            </div>
+          </div>
+
+          <p class="admin__meta" id="key-meta"></p>
+
+          <div class="admin__examples">
+            <h2>CLI examples</h2>
+            <pre class="admin__code"><code id="curl-example">export MADETHIS_API_KEY='…'
+./scripts/madethis upload page.html --ttl 1h
+./scripts/madethis upload site.zip
+./scripts/madethis upload notes.md</code></pre>
+          </div>
+
+          <div class="admin__formats">
+            <h2>Supported uploads</h2>
+            <ul>
+              <li><code>.html</code> / <code>.htm</code> — single pages</li>
+              <li><code>.md</code> — markdown (served as text/markdown)</li>
+              <li><code>.js</code> / <code>.css</code> — auto-wrapped with a shell <code>index.html</code></li>
+              <li><code>.zip</code> — full static sites (HTML + JS + CSS assets)</li>
+            </ul>
+          </div>
+        </section>
+      )}
+    </main>
+
+    <script>
+      const loginForm = document.getElementById("login-form");
+      const loginError = document.getElementById("login-error");
+      loginForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        loginError.hidden = true;
+        const data = new FormData(loginForm);
+        const res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: data.get("username"),
+            password: data.get("password"),
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          loginError.textContent = body?.error?.message ?? "Login failed.";
+          loginError.hidden = false;
+          return;
+        }
+        location.reload();
+      });
+
+      const keyEl = document.getElementById("api-key");
+      const keyMeta = document.getElementById("key-meta");
+      const curlExample = document.getElementById("curl-example");
+      let fullKey = "";
+      let revealed = false;
+
+      function renderKey() {
+        if (!keyEl) return;
+        keyEl.textContent = revealed ? fullKey : fullKey.replace(/^(.{6}).+(.{4})$/, "$1••••••••$2");
+      }
+
+      async function loadKey() {
+        const res = await fetch("/api/admin/api-key");
+        if (!res.ok) {
+          if (keyEl) keyEl.textContent = "Could not load key.";
+          return;
+        }
+        const data = await res.json();
+        fullKey = data.key;
+        renderKey();
+        if (keyMeta) {
+          keyMeta.textContent = `Created ${new Date(data.createdAt).toLocaleString()}`;
+        }
+        if (curlExample) {
+          curlExample.textContent = `export MADETHIS_API_KEY='${fullKey}'\n./scripts/madethis upload page.html --ttl 1h\n./scripts/madethis upload site.zip\n./scripts/madethis upload notes.md`;
+        }
+      }
+
+      document.getElementById("reveal-btn")?.addEventListener("click", () => {
+        revealed = !revealed;
+        renderKey();
+        const btn = document.getElementById("reveal-btn");
+        if (btn) btn.textContent = revealed ? "Hide" : "Reveal";
+      });
+
+      document.getElementById("copy-btn")?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(fullKey);
+        } catch {
+          /* ignore */
+        }
+      });
+
+      document.getElementById("rotate-btn")?.addEventListener("click", async () => {
+        if (!confirm("Regenerate the API key? Old keys stop working immediately.")) return;
+        const res = await fetch("/api/admin/api-key", { method: "POST" });
+        if (!res.ok) return;
+        revealed = true;
+        await loadKey();
+      });
+
+      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+        await fetch("/api/admin/logout", { method: "POST" });
+        location.reload();
+      });
+
+      if (keyEl) loadKey();
+    </script>
+  </body>
+</html>
