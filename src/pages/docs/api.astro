@@ -36,7 +36,7 @@ import "../../styles/global.css";
         <pre class="admin__code"><code>POST /api/upload/init
 Content-Type: application/json
 
-{"totalBytes": 12345, "ttlSeconds": 3600}</code></pre>
+&#123;"totalBytes": 12345, "ttlSeconds": 3600&#125;</code></pre>
         <p>Returns <code>uploadId</code> and <code>chunkSize</code> (3 MB).</p>
 
         <h3>2. Chunk</h3>
@@ -51,12 +51,12 @@ x-chunk-index: 0
         <pre class="admin__code"><code>POST /api/upload/finalize
 Content-Type: application/json
 
-{
+&#123;
   "uploadId": "&lt;uploadId&gt;",
   "totalChunks": 1,
   "ttlSeconds": 3600,
   "sha256": "&lt;sha256 hex of full zip&gt;"
-}</code></pre>
+&#125;</code></pre>
         <p>Returns <code>slug</code> and <code>url</code> like <code>/s/abc12345/</code>.</p>
 
         <h2 id="cli">CLI upload <span class="docs__badge">api key</span></h2>
@@ -70,9 +70,9 @@ Content-Type: application/json
         <p>Response includes <code>fullUrl</code> ready to share.</p>
 
         <h2 id="serve">Serving</h2>
-        <pre class="admin__code"><code>GET /s/{slug}/
-GET /s/{slug}/app.js
-GET /s/{slug}/about.html</code></pre>
+        <pre class="admin__code"><code>GET /s/&#123;slug&#125;/
+GET /s/&#123;slug&#125;/app.js
+GET /s/&#123;slug&#125;/about.html</code></pre>
         <p>Expired → 410. Missing → 404.</p>
 
         <h2 id="limits">Limits</h2>
