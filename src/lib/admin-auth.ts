@@ -11,17 +11,51 @@ export interface AdminAuthRecord {
   createdAt: number;
 }
 
+export type AdminLoginResult = { kind: "blob"; record: AdminAuthRecord } | { kind: "env" };
+
 function envPassword(): string | undefined {
-  const password = process.env.ADMIN_PASSWORD;
+  const password = process.env["ADMIN_PASSWORD"];
   return typeof password === "string" && password.length >= 8 ? password : undefined;
 }
 
 function envUsername(): string {
-  return process.env.ADMIN_USERNAME?.trim() || "admin";
+  const username = process.env["ADMIN_USERNAME"];
+  return typeof username === "string" && username.trim() ? username.trim() : "admin";
 }
 
 function hashPassword(password: string, salt: Buffer): string {
   return scryptSync(password, salt, 64).toString("hex");
+}
+
+/** Stable signing secret when blob/env peppers are unavailable (Vercel always has blob store). */
+export function deploymentSessionPepper(): string {
+  const material =
+    process.env["BLOB_STORE_ID"] ??
+    process.env["BLOB_READ_WRITE_TOKEN"]?.slice(0, 48) ??
+    process.env["VERCEL_URL"] ??
+    "madethis.website";
+  return createHmac("sha256", "madethis-deploy-session-v1").update(material).digest("hex");
+}
+
+export function pepperFromEnvPassword(): string {
+  const envPw = envPassword();
+  if (envPw) {
+    return createHmac("sha256", "madethis-session-v1").update(envPw).digest("hex");
+  }
+  const explicit = process.env["SESSION_SECRET"];
+  if (typeof explicit === "string" && explicit.length >= 32) return explicit;
+  return deploymentSessionPepper();
+}
+
+export function resolveSessionPepper(record?: AdminAuthRecord | null): string {
+  const explicit = process.env["SESSION_SECRET"];
+  if (typeof explicit === "string" && explicit.length >= 32) return explicit;
+  if (record?.sessionPepper) return record.sessionPepper;
+  const envPw = envPassword();
+  if (envPw) {
+    return createHmac("sha256", "madethis-session-v1").update(envPw).digest("hex");
+  }
+  return deploymentSessionPepper();
 }
 
 export async function getAdminAuth(): Promise<AdminAuthRecord | null> {
@@ -45,12 +79,14 @@ export async function getAdminAuth(): Promise<AdminAuthRecord | null> {
 }
 
 export async function hasAdminAuth(): Promise<boolean> {
-  if (envPassword()) return true;
-  return (await getAdminAuth()) !== null;
+  const blob = await getAdminAuth();
+  if (blob) return true;
+  return !!envPassword();
 }
 
 export async function createAdminAuth(username: string, password: string): Promise<AdminAuthRecord> {
-  if (await hasAdminAuth()) throw new Error("already_configured");
+  const existing = await getAdminAuth();
+  if (existing) throw new Error("already_configured");
   if (password.length < 8) throw new Error("password_too_short");
 
   const cleanUser = username.trim() || "admin";
@@ -65,45 +101,44 @@ export async function createAdminAuth(username: string, password: string): Promi
     createdAt: Date.now(),
   };
 
-  await storage.put(CONFIG_PATH, new TextEncoder().encode(JSON.stringify(record)), "application/json");
+  await storage.put(CONFIG_PATH, new TextEncoder().encode(JSON.stringify(record)), "application/json", {
+    allowOverwrite: true,
+  });
   return record;
 }
 
-export async function verifyAdminPassword(username: string, password: string): Promise<boolean> {
-  const envPw = envPassword();
-  if (envPw) {
-    if (username.trim() !== envUsername()) return false;
-    if (password.length !== envPw.length) return false;
+export async function verifyAdminLogin(username: string, password: string): Promise<AdminLoginResult | null> {
+  const blob = await getAdminAuth();
+  if (blob) {
+    if (username.trim() !== blob.username) return null;
+    const salt = Buffer.from(blob.salt, "hex");
+    const hash = hashPassword(password, salt);
+    if (hash.length !== blob.passwordHash.length) return null;
     try {
-      return timingSafeEqual(Buffer.from(password), Buffer.from(envPw));
+      if (timingSafeEqual(Buffer.from(hash), Buffer.from(blob.passwordHash))) {
+        return { kind: "blob", record: blob };
+      }
     } catch {
-      return false;
+      return null;
     }
+    return null;
   }
 
-  const record = await getAdminAuth();
-  if (!record) return false;
-  if (username.trim() !== record.username) return false;
-
-  const salt = Buffer.from(record.salt, "hex");
-  const hash = hashPassword(password, salt);
-  if (hash.length !== record.passwordHash.length) return false;
+  const envPw = envPassword();
+  if (!envPw) return null;
+  if (username.trim() !== envUsername()) return null;
+  if (password.length !== envPw.length) return null;
   try {
-    return timingSafeEqual(Buffer.from(hash), Buffer.from(record.passwordHash));
+    if (timingSafeEqual(Buffer.from(password), Buffer.from(envPw))) {
+      return { kind: "env" };
+    }
   } catch {
-    return false;
+    return null;
   }
+  return null;
 }
 
-export async function getSessionPepper(): Promise<string | null> {
-  const explicit = process.env.SESSION_SECRET;
-  if (typeof explicit === "string" && explicit.length >= 32) return explicit;
-
-  const envPw = envPassword();
-  if (envPw) {
-    return createHmac("sha256", "madethis-session-v1").update(envPw).digest("hex");
-  }
-
+export async function getSessionPepper(): Promise<string> {
   const record = await getAdminAuth();
-  return record?.sessionPepper ?? null;
+  return resolveSessionPepper(record);
 }

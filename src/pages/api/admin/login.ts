@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { json, error } from "../../../lib/http";
-import { verifyAdminPassword, hasAdminAuth } from "../../../lib/admin-auth";
+import { hasAdminAuth, verifyAdminLogin } from "../../../lib/admin-auth";
 import { createSessionToken, sessionCookieHeader } from "../../../lib/session";
 import { ensureApiKey } from "../../../lib/apikey";
 
@@ -23,15 +23,12 @@ export const POST: APIRoute = async ({ request }) => {
     return error(400, "invalid_json");
   }
 
-  const username = body.username ?? "";
-  const password = body.password ?? "";
-  if (!(await verifyAdminPassword(username, password))) {
+  const auth = await verifyAdminLogin(body.username ?? "", body.password ?? "");
+  if (!auth) {
     return error(401, "invalid_credentials", "Invalid username or password.");
   }
 
-  const token = await createSessionToken();
-  if (!token) return error(503, "session_unavailable");
-
+  const token = auth.kind === "blob" ? createSessionToken(auth.record) : createSessionToken(null);
   await ensureApiKey();
 
   return json({ ok: true }, 200, { "Set-Cookie": sessionCookieHeader(token) });

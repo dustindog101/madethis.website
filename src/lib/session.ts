@@ -1,12 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getSessionPepper } from "./admin-auth.js";
+import type { AdminAuthRecord } from "./admin-auth.js";
+import { getSessionPepper, resolveSessionPepper } from "./admin-auth.js";
 
 export const SESSION_COOKIE = "madethis_session";
 const MAX_AGE_SEC = 7 * 24 * 60 * 60;
 
-export async function createSessionToken(): Promise<string | null> {
-  const secret = await getSessionPepper();
-  if (!secret) return null;
+function signToken(secret: string): string {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEC;
   const payload = JSON.stringify({ sub: "admin", exp });
   const body = Buffer.from(payload).toString("base64url");
@@ -14,9 +13,16 @@ export async function createSessionToken(): Promise<string | null> {
   return `${body}.${sig}`;
 }
 
+export function createSessionToken(record?: AdminAuthRecord | null): string {
+  return signToken(resolveSessionPepper(record));
+}
+
+export async function createSessionTokenAsync(): Promise<string> {
+  return signToken(await getSessionPepper());
+}
+
 async function verifySessionToken(token: string): Promise<boolean> {
   const secret = await getSessionPepper();
-  if (!secret) return false;
   const dot = token.indexOf(".");
   if (dot < 1) return false;
   const body = token.slice(0, dot);

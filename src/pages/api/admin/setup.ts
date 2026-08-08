@@ -38,19 +38,21 @@ export const POST: APIRoute = async ({ request }) => {
     return error(400, "password_mismatch", "Passwords do not match.");
   }
 
+  let record;
   try {
-    await createAdminAuth(body.username ?? "admin", password);
+    record = await createAdminAuth(body.username ?? "admin", password);
   } catch (err) {
     const message = err instanceof Error ? err.message : "setup_failed";
     if (message === "invalid_username") {
       return error(400, "invalid_username", "Username must be 2–40 characters: letters, numbers, . _ -");
     }
+    if (message === "already_configured") {
+      return error(409, "already_configured", "Admin already exists. Sign in instead.");
+    }
     return error(503, "setup_failed", "Could not save admin credentials.");
   }
 
-  const token = await createSessionToken();
-  if (!token) return error(503, "session_unavailable");
-
+  const token = createSessionToken(record);
   await ensureApiKey();
 
   return json({ ok: true }, 201, { "Set-Cookie": sessionCookieHeader(token) });
