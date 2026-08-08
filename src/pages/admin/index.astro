@@ -25,7 +25,7 @@ const configured = adminConfigured();
       {!configured ? (
         <section class="admin__card">
           <h1>Admin not configured</h1>
-          <p>Set <code>ADMIN_PASSWORD</code> and <code>SESSION_SECRET</code> (32+ chars each) in your Vercel env vars, then redeploy.</p>
+          <p>Set <code>ADMIN_PASSWORD</code> (8+ characters) in your Vercel env vars, then redeploy. Username defaults to <code>admin</code>.</p>
         </section>
       ) : !authed ? (
         <section class="admin__card">

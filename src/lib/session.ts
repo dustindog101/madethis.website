@@ -3,14 +3,25 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const SESSION_COOKIE = "madethis_session";
 const MAX_AGE_SEC = 7 * 24 * 60 * 60;
 
+/**
+ * Signs admin session cookies. Uses SESSION_SECRET when set, otherwise derives
+ * one from ADMIN_PASSWORD so you only need a single env var to get started.
+ */
 function sessionSecret(): string | null {
-  const secret = process.env.SESSION_SECRET;
-  return typeof secret === "string" && secret.length >= 32 ? secret : null;
+  const explicit = process.env.SESSION_SECRET;
+  if (typeof explicit === "string" && explicit.length >= 32) return explicit;
+
+  const password = process.env.ADMIN_PASSWORD;
+  if (typeof password === "string" && password.length >= 8) {
+    return createHmac("sha256", "madethis-session-v1").update(password).digest("hex");
+  }
+
+  return null;
 }
 
 export function adminConfigured(): boolean {
   const password = process.env.ADMIN_PASSWORD;
-  return typeof password === "string" && password.length >= 8 && sessionSecret() !== null;
+  return typeof password === "string" && password.length >= 8;
 }
 
 export function createSessionToken(): string | null {
@@ -49,12 +60,17 @@ export function verifySessionToken(token: string): boolean {
   }
 }
 
+function cookieSuffix(): string {
+  // Secure cookies only work on HTTPS — skip locally so dev login works.
+  return process.env.VERCEL === "1" ? "; Secure" : "";
+}
+
 export function sessionCookieHeader(token: string): string {
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${MAX_AGE_SEC}`;
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${MAX_AGE_SEC}${cookieSuffix()}`;
 }
 
 export function clearSessionCookieHeader(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${cookieSuffix()}`;
 }
 
 export function isAdminSession(request: Request): boolean {
