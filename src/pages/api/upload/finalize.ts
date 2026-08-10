@@ -11,6 +11,8 @@ import {
 import { storage, storageReady } from "../../../lib/storage";
 import { publishSiteFromZip } from "../../../lib/publish";
 
+import { clientIp } from "../../../lib/ip";
+
 export const prerender = false;
 
 interface FinalizeBody {
@@ -40,7 +42,7 @@ export const POST: APIRoute = async ({ request }) => {
     return error(400, "invalid_chunk_count");
   }
   const ttlSeconds = body.ttlSeconds ?? UPLOAD_TTL_OPTIONS[1];
-  if (!UPLOAD_TTL_OPTIONS.includes(ttlSeconds)) return error(400, "invalid_ttl");
+  if (!(UPLOAD_TTL_OPTIONS as readonly number[]).includes(ttlSeconds)) return error(400, "invalid_ttl");
 
   const expectedSha = body.sha256;
   if (typeof expectedSha !== "string" || !/^[a-f0-9]{64}$/.test(expectedSha)) {
@@ -71,8 +73,19 @@ export const POST: APIRoute = async ({ request }) => {
     return error(422, "checksum_mismatch");
   }
 
+  const rawIp = clientIp(request);
+  const country = request.headers.get("x-vercel-ip-country") ?? undefined;
+  const city = request.headers.get("x-vercel-ip-city") ?? undefined;
+  const userAgent = request.headers.get("user-agent") ?? undefined;
+
   try {
-    const published = await publishSiteFromZip(zipBytes, ttlSeconds);
+    const published = await publishSiteFromZip(zipBytes, ttlSeconds, {
+      ip: rawIp,
+      source: "website",
+      country,
+      city,
+      userAgent,
+    });
     await cleanupChunks(body.uploadId, totalChunks);
     return json({
       ok: true,

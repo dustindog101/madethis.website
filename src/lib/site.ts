@@ -2,6 +2,7 @@ import { storage } from "./storage.js";
 import { siteZipPath, siteMetaPath } from "./limits";
 import { validSlug } from "./ids";
 import type { ZipEntry } from "./zip";
+import { deleteUploadLogEntry } from "./logs";
 
 export interface SiteMeta {
   slug: string;
@@ -10,6 +11,11 @@ export interface SiteMeta {
   bytes: number;
   files: number;
   homepage: string | null;
+  ip?: string;
+  source?: "website" | "cli" | "api";
+  userAgent?: string;
+  country?: string;
+  city?: string;
 }
 
 export function resolveHomepage(entries: ZipEntry[]): string | null {
@@ -22,12 +28,21 @@ export function resolveHomepage(entries: ZipEntry[]): string | null {
   return null;
 }
 
+export interface CreateSiteOptions {
+  ip?: string;
+  source?: "website" | "cli" | "api";
+  userAgent?: string;
+  country?: string;
+  city?: string;
+}
+
 export async function createSite(
   slug: string,
   zipBytes: Uint8Array,
   ttlSeconds: number,
   files: number,
   homepage: string | null,
+  options?: CreateSiteOptions,
 ): Promise<SiteMeta> {
   if (!validSlug(slug)) throw new Error("invalid slug");
   const now = Date.now();
@@ -38,6 +53,11 @@ export async function createSite(
     bytes: zipBytes.length,
     files,
     homepage,
+    ip: options?.ip,
+    source: options?.source ?? "website",
+    userAgent: options?.userAgent,
+    country: options?.country,
+    city: options?.city,
   };
   const metaBytes = new TextEncoder().encode(JSON.stringify(meta));
   await storage.put(siteMetaPath(slug), metaBytes, "application/json");
@@ -70,9 +90,10 @@ export function isExpired(meta: SiteMeta): boolean {
 /**
  * Deletes the zip first, then the meta — the meta is the "index" of the
  * site, so removing it last keeps read paths from ever racing into a
- * half-deleted state.
+ * half-deleted state. Also removes the entry from the log index.
  */
 export async function deleteSite(slug: string): Promise<void> {
   await storage.delete(siteZipPath(slug));
   await storage.delete(siteMetaPath(slug));
+  await deleteUploadLogEntry(slug).catch(() => {});
 }

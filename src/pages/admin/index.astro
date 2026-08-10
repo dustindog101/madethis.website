@@ -13,14 +13,23 @@ const authed = await isAdminSession(Astro.request);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Admin — madethis.website</title>
+    <title>Admin Dashboard — madethis.website</title>
     <meta name="color-scheme" content="dark" />
   </head>
   <body class="admin-page">
-    <main class="admin">
+    <main class={`admin ${authed ? "admin--wide" : ""}`}>
       <header class="admin__head">
-        <a class="admin__brand" href="/">madethis.website</a>
-        <span class="admin__tag">admin</span>
+        <div class="admin__head-left">
+          <a class="admin__brand" href="/">madethis.website</a>
+          <span class="admin__tag">admin dashboard</span>
+        </div>
+        {authed && (
+          <div class="admin__head-nav">
+            <a class="btn btn--ghost" href="/" style="min-height: 36px; padding: 0 14px; font-size: 0.84rem;">View Site</a>
+            <a class="btn btn--ghost" href="/docs/api" style="min-height: 36px; padding: 0 14px; font-size: 0.84rem;">API Docs</a>
+            <button class="btn btn--ghost" id="logout-btn" type="button" style="min-height: 36px; padding: 0 14px; font-size: 0.84rem;">Sign out</button>
+          </div>
+        )}
       </header>
 
       {!configured ? (
@@ -47,7 +56,7 @@ const authed = await isAdminSession(Astro.request);
       ) : !authed ? (
         <section class="admin__card">
           <h1>Sign in</h1>
-          <p class="admin__lede">CLI uploads and API key management live here — not linked from the main nav.</p>
+          <p class="admin__lede">Protected area for site management, upload logs, and API key configuration.</p>
           <form class="admin__form" id="login-form">
             <label>
               <span>Username</span>
@@ -62,70 +71,178 @@ const authed = await isAdminSession(Astro.request);
           </form>
         </section>
       ) : (
-        <section class="admin__card">
-          <div class="admin__row">
-            <h1>API key</h1>
-            <button class="btn btn--ghost" id="logout-btn" type="button">Sign out</button>
-          </div>
-          <p class="admin__lede">
-            Use this key in your terminal for CLI uploads. The public dropzone does not need it.
-          </p>
-
-          <div class="admin__keybox">
-            <code id="api-key" class="admin__key">loading…</code>
-            <div class="admin__key-actions">
-              <button class="btn btn--ghost" id="reveal-btn" type="button">Reveal</button>
-              <button class="btn btn--ghost" id="copy-btn" type="button">Copy</button>
-              <button class="btn btn--primary" id="rotate-btn" type="button">Regenerate</button>
+        <section class="admin__dashboard">
+          <!-- Metrics Bar -->
+          <div class="admin__metrics" id="metrics-bar">
+            <div class="metric-card">
+              <div class="metric-card__title">Active Sites</div>
+              <div class="metric-card__val" id="metric-active">-</div>
+              <div class="metric-card__sub" id="metric-total-uploads">Loading uploads…</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card__title">Storage Used</div>
+              <div class="metric-card__val" id="metric-storage">-</div>
+              <div class="metric-card__sub">Vercel Blob (500MB Free Tier)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card__title">CLI Uploads</div>
+              <div class="metric-card__val" id="metric-cli-count">-</div>
+              <div class="metric-card__sub">Terminal & Automation</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card__title">Web Uploads</div>
+              <div class="metric-card__val" id="metric-web-count">-</div>
+              <div class="metric-card__sub">Browser Dropzone</div>
             </div>
           </div>
 
-          <p class="admin__meta" id="key-meta"></p>
-
-          <div class="admin__formats">
-            <h2>What renders in the browser</h2>
-            <ul>
-              <li><code>.html</code> + <code>.css</code> + <code>.js</code> — full static frontends (relative paths work)</li>
-              <li><code>.md</code> — auto-rendered with clean typography (add <code>?raw=1</code> for source)</li>
-              <li><code>.zip</code> — packed sites with assets, fonts, images</li>
-            </ul>
+          <!-- Navigation Tabs -->
+          <div class="admin__tabs">
+            <button class="admin__tab is-active" data-tab="logs" type="button">Upload Logs &amp; Sites</button>
+            <button class="admin__tab" data-tab="apikey" type="button">API Key &amp; Quickstart</button>
+            <button class="admin__tab" data-tab="quota" type="button">Security &amp; Quotas</button>
           </div>
 
-          <div class="admin__examples">
-            <h2>API quick reference</h2>
-            <p class="admin__lede">Full docs: <a href="/docs/api">/docs/api</a></p>
+          <!-- TAB 1: Upload Logs & Sites -->
+          <div class="admin__tab-panel is-active" id="tab-logs">
+            <div class="admin__toolbar">
+              <div class="admin__search-box">
+                <input type="text" id="log-search" placeholder="Search by slug, IP, location, homepage..." />
+                <select id="log-source">
+                  <option value="all">All Sources</option>
+                  <option value="cli">CLI</option>
+                  <option value="website">Website</option>
+                  <option value="api">API</option>
+                </select>
+              </div>
+              <button class="btn btn--ghost" id="refresh-logs-btn" type="button" style="min-height: 38px; padding: 0 14px; font-size: 0.84rem;">
+                Refresh Logs
+              </button>
+            </div>
 
-            <h3>CLI upload (single request)</h3>
-            <pre class="admin__code"><code id="curl-cli">curl -fsS -X POST "https://www.madethis.website/api/cli/upload?ttl=1h" \
+            <div class="admin__table-wrap">
+              <table class="admin__table">
+                <thead>
+                  <tr>
+                    <th>Uploaded At</th>
+                    <th>Page / Slug</th>
+                    <th>Source</th>
+                    <th>IP &amp; Location</th>
+                    <th>Expires In</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-tbody">
+                  <tr>
+                    <td colspan="6" style="text-align: center; padding: 32px; color: var(--muted);">
+                      Loading recent upload logs…
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="admin__pagination">
+              <div id="pagination-info">Showing 0 of 0 items</div>
+              <div class="admin__page-btns">
+                <select id="log-limit" style="background: var(--ink-2); border: 1px solid var(--hair-strong); border-radius: 6px; color: var(--text); padding: 4px 8px; font-family: var(--font-mono); font-size: 0.78rem;">
+                  <option value="10">10 / page</option>
+                  <option value="25">25 / page</option>
+                  <option value="50">50 / page</option>
+                </select>
+                <button class="btn btn--ghost" id="prev-page-btn" type="button" disabled style="min-height: 32px; padding: 0 10px; font-size: 0.78rem;">Prev</button>
+                <span id="current-page-num" style="font-family: var(--font-mono); font-size: 0.8rem; padding: 0 6px;">1</span>
+                <button class="btn btn--ghost" id="next-page-btn" type="button" disabled style="min-height: 32px; padding: 0 10px; font-size: 0.78rem;">Next</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: API Key & Quickstart -->
+          <div class="admin__tab-panel" id="tab-apikey">
+            <section class="admin__card">
+              <div class="admin__row">
+                <h1>API Key Management</h1>
+              </div>
+              <p class="admin__lede">
+                Use this bearer token to authenticate CLI script uploads. Public dropzone does not require this key.
+              </p>
+
+              <div class="admin__keybox">
+                <code id="api-key" class="admin__key">loading…</code>
+                <div class="admin__key-actions">
+                  <button class="btn btn--ghost" id="reveal-btn" type="button">Reveal</button>
+                  <button class="btn btn--ghost" id="copy-btn" type="button">Copy</button>
+                  <button class="btn btn--primary" id="rotate-btn" type="button">Regenerate</button>
+                </div>
+              </div>
+
+              <p class="admin__meta" id="key-meta"></p>
+
+              <div class="admin__examples" style="margin-top: 24px;">
+                <h2>CLI Quick Reference</h2>
+
+                <h3>1-Line cURL Upload (Single File or ZIP)</h3>
+                <pre class="admin__code"><code id="curl-cli">curl -fsS -X POST "https://www.madethis.website/api/cli/upload?ttl=1h" \
   -H "Authorization: Bearer $MADETHIS_API_KEY" \
   -H "Content-Type: text/html; charset=utf-8" \
   --data-binary @plan.html</code></pre>
 
-            <h3>Chunked upload (folders / zips)</h3>
-            <pre class="admin__code"><code>POST /api/upload/init     → uploadId
-POST /api/upload/chunk    → raw bytes (≤3 MB each)
-POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
-
-            <h3>Styled HTML plan example</h3>
-            <pre class="admin__code"><code>curl -fsS -X POST ".../api/cli/upload?ttl=24h" \
+                <h3>JSON Payload Upload</h3>
+                <pre class="admin__code"><code>curl -fsS -X POST "https://www.madethis.website/api/cli/upload" \
   -H "Authorization: Bearer $MADETHIS_API_KEY" \
-  -H "Content-Type: text/html" \
-  --data-binary @styled-plan.html
+  -H "Content-Type: application/json" \
+  -d '&#123;"content": "# Hello World", "filename": "index.md", "ttl": 86400&#125;'</code></pre>
+              </div>
+            </section>
+          </div>
 
-# Or zip a whole folder:
-./scripts/madethis upload dist.zip --ttl 24h</code></pre>
+          <!-- TAB 3: Security & Quotas -->
+          <div class="admin__tab-panel" id="tab-quota">
+            <section class="admin__card">
+              <h1>Security &amp; Free Tier Limits</h1>
+              <p class="admin__lede">Overview of current security enforcement and storage quotas.</p>
+
+              <div class="admin__formats">
+                <h2>Security Enhancements Active</h2>
+                <ul>
+                  <li><strong>Password Hashing:</strong> Node.js <code>scryptSync</code> with random 16-byte salt per deployment.</li>
+                  <li><strong>Session Cookies:</strong> HMAC-SHA256 signed, <code>HttpOnly</code>, <code>SameSite=Strict</code>, <code>Secure</code> in production.</li>
+                  <li><strong>Login Rate Limiting:</strong> Enforced max 5 login attempts per 15 minutes per IP address.</li>
+                  <li><strong>Upload Rate Limiting:</strong> Enforced global &amp; IP-based hourly limits on dropzone &amp; CLI routes.</li>
+                </ul>
+
+                <h2>Vercel Free Tier Efficiency</h2>
+                <ul>
+                  <li><strong>Blob Operations:</strong> Log index is aggregated into a single rolling JSON manifest (`config/upload-logs.json`) to minimize read/write operations.</li>
+                  <li><strong>Automatic Cleanup:</strong> Expired sites are removed automatically by Vercel Cron (`/api/cron/cleanup`).</li>
+                  <li><strong>Storage Cap:</strong> Free Tier includes 500 MB storage and 10,000 read operations / month.</li>
+                </ul>
+              </div>
+            </section>
           </div>
         </section>
+
+        <!-- Log Details Modal -->
+        <div class="admin__modal-backdrop" id="details-modal" hidden>
+          <div class="admin__modal">
+            <div class="admin__modal-head">
+              <h3 class="admin__modal-title">Upload Log Details</h3>
+              <button class="btn-icon" id="close-modal-btn" type="button">&times;</button>
+            </div>
+            <pre class="admin__code" style="max-height: 380px; overflow-y: auto;"><code id="modal-json"></code></pre>
+          </div>
+        </div>
       )}
     </main>
 
     <script>
+      // Authentication Forms
       const setupForm = document.getElementById("setup-form");
       const setupError = document.getElementById("setup-error");
       setupForm?.addEventListener("submit", async (e) => {
         e.preventDefault();
-        setupError.hidden = true;
-        const data = new FormData(setupForm);
+        if (setupError) setupError.hidden = true;
+        const data = new FormData(setupForm as HTMLFormElement);
         const res = await fetch("/api/admin/setup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -137,8 +254,10 @@ POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
         });
         if (!res.ok) {
           const body = await res.json().catch(() => null);
-          setupError.textContent = body?.error?.message ?? "Setup failed.";
-          setupError.hidden = false;
+          if (setupError) {
+            setupError.textContent = body?.error?.message ?? "Setup failed.";
+            setupError.hidden = false;
+          }
           return;
         }
         location.reload();
@@ -148,8 +267,8 @@ POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
       const loginError = document.getElementById("login-error");
       loginForm?.addEventListener("submit", async (e) => {
         e.preventDefault();
-        loginError.hidden = true;
-        const data = new FormData(loginForm);
+        if (loginError) loginError.hidden = true;
+        const data = new FormData(loginForm as HTMLFormElement);
         const res = await fetch("/api/admin/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -160,13 +279,34 @@ POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
         });
         if (!res.ok) {
           const body = await res.json().catch(() => null);
-          loginError.textContent = body?.error?.message ?? "Login failed.";
-          loginError.hidden = false;
+          if (loginError) {
+            loginError.textContent = body?.error?.message ?? "Login failed.";
+            loginError.hidden = false;
+          }
           return;
         }
         location.reload();
       });
 
+      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+        await fetch("/api/admin/logout", { method: "POST" });
+        location.reload();
+      });
+
+      // Dashboard Tabs
+      const tabs = document.querySelectorAll<HTMLButtonElement>(".admin__tab");
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((t) => t.classList.remove("is-active"));
+          document.querySelectorAll(".admin__tab-panel").forEach((p) => p.classList.remove("is-active"));
+
+          tab.classList.add("is-active");
+          const targetId = `tab-${tab.dataset.tab}`;
+          document.getElementById(targetId)?.classList.add("is-active");
+        });
+      });
+
+      // API Key Management
       const keyEl = document.getElementById("api-key");
       const keyMeta = document.getElementById("key-meta");
       let fullKey = "";
@@ -205,6 +345,7 @@ POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
       document.getElementById("copy-btn")?.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(fullKey);
+          alert("API key copied to clipboard!");
         } catch {
           /* ignore */
         }
@@ -218,12 +359,218 @@ POST /api/upload/finalize → slug + /s/&#123;slug&#125;/ URL</code></pre>
         await loadKey();
       });
 
-      document.getElementById("logout-btn")?.addEventListener("click", async () => {
-        await fetch("/api/admin/logout", { method: "POST" });
-        location.reload();
+      if (keyEl) loadKey();
+
+      // Log Management System
+      let currentPage = 1;
+      let currentLimit = 10;
+
+      function formatBytes(bytes: number): string {
+        if (bytes === 0) return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+      }
+
+      function formatTimeAgo(timestamp: number): string {
+        const diff = Math.floor((Date.now() - timestamp) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return `${Math.floor(diff / 86400)}d ago`;
+      }
+
+      function formatExpires(expiresAt: number): { label: string; active: boolean } {
+        const remaining = Math.floor((expiresAt - Date.now()) / 1000);
+        if (remaining <= 0) return { label: "Expired", active: false };
+        if (remaining < 3600) return { label: `${Math.floor(remaining / 60)}m left`, active: true };
+        return { label: `${(remaining / 3600).toFixed(1)}h left`, active: true };
+      }
+
+      async function loadLogs() {
+        const tbody = document.getElementById("logs-tbody");
+        const searchInput = document.getElementById("log-search") as HTMLInputElement;
+        const sourceSelect = document.getElementById("log-source") as HTMLSelectElement;
+
+        const search = searchInput?.value.trim() ?? "";
+        const source = sourceSelect?.value ?? "all";
+
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          limit: String(currentLimit),
+          ...(search ? { search } : {}),
+          ...(source !== "all" ? { source } : {}),
+        });
+
+        const res = await fetch(`/api/admin/logs?${params.toString()}`);
+        if (!res.ok) {
+          if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 24px;">Failed to load upload logs.</td></tr>`;
+          return;
+        }
+
+        const data = await res.json();
+
+        // Update metrics
+        if (data.metrics) {
+          const mActive = document.getElementById("metric-active");
+          const mTotal = document.getElementById("metric-total-uploads");
+          const mStorage = document.getElementById("metric-storage");
+          const mCli = document.getElementById("metric-cli-count");
+          const mWeb = document.getElementById("metric-web-count");
+
+          if (mActive) mActive.textContent = String(data.metrics.activeSites ?? 0);
+          if (mTotal) mTotal.textContent = `${data.metrics.totalUploads ?? 0} total upload logs`;
+          if (mStorage) mStorage.textContent = formatBytes(data.metrics.totalBytes ?? 0);
+          if (mCli) mCli.textContent = String(data.metrics.sources?.cli ?? 0);
+          if (mWeb) mWeb.textContent = String(data.metrics.sources?.website ?? 0);
+        }
+
+        // Render table rows
+        if (tbody) {
+          if (data.records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 32px;">No upload logs found matching criteria.</td></tr>`;
+          } else {
+            tbody.innerHTML = data.records.map((log: any) => {
+              const exp = formatExpires(log.expiresAt);
+              const geo = log.city || log.country ? ` (${[log.city, log.country].filter(Boolean).join(", ")})` : "";
+              const fullUrl = `${window.location.origin}/s/${log.slug}/`;
+
+              return `
+                <tr>
+                  <td>
+                    <div>${formatTimeAgo(log.createdAt)}</div>
+                    <span class="admin__table-sub">${new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </td>
+                  <td>
+                    <a class="admin__table-slug" href="/s/${log.slug}/" target="_blank" rel="noopener">/s/${log.slug}/</a>
+                    <span class="admin__table-sub">${log.homepage ?? "index.html"} • ${log.files ?? 1} file(s) • ${formatBytes(log.bytes ?? 0)}</span>
+                  </td>
+                  <td>
+                    <span class="badge badge--${log.source ?? 'website'}">${log.source ?? 'website'}</span>
+                  </td>
+                  <td>
+                    <div style="font-family: var(--font-mono); font-size: 0.82rem;">${log.ip ?? 'unknown'}${geo}</div>
+                  </td>
+                  <td>
+                    <span class="badge badge--${exp.active ? 'active' : 'expired'}">${exp.label}</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <div class="admin__actions" style="justify-content: flex-end;">
+                      <a class="btn-icon" href="/s/${log.slug}/" target="_blank" title="Open Site" rel="noopener">↗</a>
+                      <button class="btn-icon" type="button" title="Copy URL" onclick="navigator.clipboard.writeText('${fullUrl}')">📋</button>
+                      <button class="btn-icon" type="button" title="View Details" onclick="viewLogDetails('${log.slug}')">🔍</button>
+                      <button class="btn-icon btn-icon--danger" type="button" title="Delete Site" onclick="deleteSite('${log.slug}')">🗑</button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join("");
+
+            // Store current records on window for detail modal lookup
+            (window as any).__logRecords = data.records;
+          }
+        }
+
+        // Pagination info
+        const info = document.getElementById("pagination-info");
+        const pageNum = document.getElementById("current-page-num");
+        const prevBtn = document.getElementById("prev-page-btn") as HTMLButtonElement;
+        const nextBtn = document.getElementById("next-page-btn") as HTMLButtonElement;
+
+        const totalRecords = data.totalRecords ?? 0;
+        const totalPages = data.totalPages ?? 1;
+        const startItem = totalRecords === 0 ? 0 : (data.currentPage - 1) * currentLimit + 1;
+        const endItem = Math.min(totalRecords, data.currentPage * currentLimit);
+
+        if (info) info.textContent = `Showing ${startItem}–${endItem} of ${totalRecords} items`;
+        if (pageNum) pageNum.textContent = String(data.currentPage);
+        if (prevBtn) prevBtn.disabled = data.currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = data.currentPage >= totalPages;
+      }
+
+      // Attach window helpers for global row actions
+      (window as any).viewLogDetails = (slug: string) => {
+        const records = (window as any).__logRecords ?? [];
+        const record = records.find((r: any) => r.slug === slug);
+        if (!record) return;
+
+        const modal = document.getElementById("details-modal");
+        const code = document.getElementById("modal-json");
+        if (code) code.textContent = JSON.stringify(record, null, 2);
+        if (modal) modal.hidden = false;
+      };
+
+      (window as any).deleteSite = async (slug: string) => {
+        if (!confirm(`Are you sure you want to delete /s/${slug}/? This action cannot be undone.`)) return;
+
+        const res = await fetch("/api/admin/delete-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug }),
+        });
+
+        if (!res.ok) {
+          alert("Failed to delete site.");
+          return;
+        }
+
+        await loadLogs();
+      };
+
+      document.getElementById("close-modal-btn")?.addEventListener("click", () => {
+        const modal = document.getElementById("details-modal");
+        if (modal) modal.hidden = true;
       });
 
-      if (keyEl) loadKey();
+      document.getElementById("details-modal")?.addEventListener("click", (e) => {
+        if (e.target === document.getElementById("details-modal")) {
+          const modal = document.getElementById("details-modal");
+          if (modal) modal.hidden = true;
+        }
+      });
+
+      // Listeners for search & pagination
+      let searchTimeout: any;
+      document.getElementById("log-search")?.addEventListener("input", () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          currentPage = 1;
+          loadLogs();
+        }, 300);
+      });
+
+      document.getElementById("log-source")?.addEventListener("change", () => {
+        currentPage = 1;
+        loadLogs();
+      });
+
+      document.getElementById("log-limit")?.addEventListener("change", (e) => {
+        currentLimit = parseInt((e.target as HTMLSelectElement).value, 10);
+        currentPage = 1;
+        loadLogs();
+      });
+
+      document.getElementById("refresh-logs-btn")?.addEventListener("click", () => {
+        loadLogs();
+      });
+
+      document.getElementById("prev-page-btn")?.addEventListener("click", () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadLogs();
+        }
+      });
+
+      document.getElementById("next-page-btn")?.addEventListener("click", () => {
+        currentPage++;
+        loadLogs();
+      });
+
+      // Initial load if authenticated
+      if (document.getElementById("logs-tbody")) {
+        loadLogs();
+      }
     </script>
   </body>
 </html>

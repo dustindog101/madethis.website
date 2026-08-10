@@ -1,7 +1,8 @@
 import { newSlug } from "./ids.js";
 import { MAX_FILES_PER_SITE, MAX_SITE_ZIP_BYTES } from "./limits.js";
 import { readZipEntries } from "./zip.js";
-import { createSite, readSiteMeta, resolveHomepage } from "./site.js";
+import { createSite, readSiteMeta, resolveHomepage, type CreateSiteOptions } from "./site.js";
+import { recordUploadLog } from "./logs.js";
 
 export interface PublishedSite {
   slug: string;
@@ -11,7 +12,11 @@ export interface PublishedSite {
   homepage: string | null;
 }
 
-export async function publishSiteFromZip(zipBytes: Uint8Array, ttlSeconds: number): Promise<PublishedSite> {
+export async function publishSiteFromZip(
+  zipBytes: Uint8Array,
+  ttlSeconds: number,
+  options?: CreateSiteOptions,
+): Promise<PublishedSite> {
   if (zipBytes.byteLength === 0 || zipBytes.byteLength > MAX_SITE_ZIP_BYTES) {
     throw new Error("site_too_large");
   }
@@ -34,7 +39,23 @@ export async function publishSiteFromZip(zipBytes: Uint8Array, ttlSeconds: numbe
   }
   if (!slug) throw new Error("no_slug_available");
 
-  const meta = await createSite(slug, zipBytes, ttlSeconds, entries.length, homepage);
+  const meta = await createSite(slug, zipBytes, ttlSeconds, entries.length, homepage, options);
+
+  await recordUploadLog({
+    id: meta.slug,
+    slug: meta.slug,
+    createdAt: meta.createdAt,
+    expiresAt: meta.expiresAt,
+    bytes: meta.bytes,
+    files: meta.files,
+    homepage: meta.homepage,
+    ip: meta.ip ?? "unknown",
+    source: meta.source ?? "website",
+    userAgent: meta.userAgent,
+    country: meta.country,
+    city: meta.city,
+  }).catch(() => {});
+
   return {
     slug,
     url: `/s/${slug}/`,
@@ -43,3 +64,4 @@ export async function publishSiteFromZip(zipBytes: Uint8Array, ttlSeconds: numbe
     homepage: meta.homepage,
   };
 }
+

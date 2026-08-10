@@ -25,7 +25,7 @@ async function streamToBytes(stream: ReadableStream): Promise<Uint8Array> {
 
 class VercelBlobStore implements StorageBackend {
   async put(pathname: string, data: Uint8Array, contentType: string, options?: PutOptions): Promise<void> {
-    await put(sanitizePathname(pathname), data, {
+    await put(sanitizePathname(pathname), Buffer.from(data), {
       access: "private",
       contentType,
       addRandomSuffix: false,

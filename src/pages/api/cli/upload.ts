@@ -4,7 +4,7 @@ import { cliUploadEnabled, verifyCliApiKey } from "../../../lib/auth";
 import { isAdminSession } from "../../../lib/session";
 import { clientIp, hashIp } from "../../../lib/ip";
 import { checkCliUploadLimits, rateLimitHeaders } from "../../../lib/ratelimit";
-import { parseTtlSeconds, prepareCliUpload, sanitizeCliFilename } from "../../../lib/cli-upload";
+import { parseTtlSeconds, prepareCliUpload } from "../../../lib/cli-upload";
 import { publishSiteFromZip } from "../../../lib/publish";
 import { DEFAULT_TTL_SECONDS, UPLOAD_TTL_OPTIONS } from "../../../lib/limits";
 import { storageReady } from "../../../lib/storage";
@@ -73,8 +73,19 @@ export const POST: APIRoute = async ({ request, url }) => {
   const prepared = prepareCliUpload(bytes, filename, contentType);
   if (!prepared.ok) return error(400, prepared.code, prepared.message);
 
+  const rawIp = clientIp(request);
+  const country = request.headers.get("x-vercel-ip-country") ?? undefined;
+  const city = request.headers.get("x-vercel-ip-city") ?? undefined;
+  const userAgent = request.headers.get("user-agent") ?? undefined;
+
   try {
-    const published = await publishSiteFromZip(prepared.zipBytes, ttlSeconds);
+    const published = await publishSiteFromZip(prepared.zipBytes, ttlSeconds, {
+      ip: rawIp,
+      source: "cli",
+      country,
+      city,
+      userAgent,
+    });
     return json(
       {
         ok: true,

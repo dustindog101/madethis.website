@@ -41,7 +41,7 @@ export const POST: APIRoute = async ({ request }) => {
     return error(400, "size_out_of_range", `ZIP must be between 1 byte and ${MAX_SITE_ZIP_BYTES} bytes`);
   }
   const ttlSeconds = body.ttlSeconds ?? UPLOAD_TTL_OPTIONS[1];
-  if (!UPLOAD_TTL_OPTIONS.includes(ttlSeconds)) {
+  if (!(UPLOAD_TTL_OPTIONS as readonly number[]).includes(ttlSeconds)) {
     return error(400, "invalid_ttl");
   }
   return json(

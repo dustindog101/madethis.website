@@ -117,7 +117,7 @@ export const GET: APIRoute = async ({ request, params }) => {
     body = injectSiteBaseTag(body, siteBaseHref(slug));
   }
 
-  return new Response(body, {
+  return new Response(body as BodyInit, {
     status: 200,
     headers: {
       "Content-Type": contentType,
