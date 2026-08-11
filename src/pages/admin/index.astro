@@ -498,7 +498,10 @@ const authed = await isAdminSession(Astro.request);
         const modal = document.getElementById("details-modal");
         const code = document.getElementById("modal-json");
         if (code) code.textContent = JSON.stringify(record, null, 2);
-        if (modal) modal.hidden = false;
+        if (modal) {
+          modal.removeAttribute("hidden");
+          modal.style.display = "grid";
+        }
       };
 
       (window as any).deleteSite = async (slug: string) => {
@@ -518,15 +521,19 @@ const authed = await isAdminSession(Astro.request);
         await loadLogs();
       };
 
-      document.getElementById("close-modal-btn")?.addEventListener("click", () => {
+      const closeModal = () => {
         const modal = document.getElementById("details-modal");
-        if (modal) modal.hidden = true;
-      });
+        if (modal) {
+          modal.setAttribute("hidden", "");
+          modal.style.display = "none";
+        }
+      };
+
+      document.getElementById("close-modal-btn")?.addEventListener("click", closeModal);
 
       document.getElementById("details-modal")?.addEventListener("click", (e) => {
         if (e.target === document.getElementById("details-modal")) {
-          const modal = document.getElementById("details-modal");
-          if (modal) modal.hidden = true;
+          closeModal();
         }
       });
 
