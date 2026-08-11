@@ -11,7 +11,7 @@ import {
 import { storage, storageReady } from "../../../lib/storage";
 import { publishSiteFromZip } from "../../../lib/publish";
 
-import { clientIp } from "../../../lib/ip";
+import { clientIp, detectUploadSource } from "../../../lib/ip";
 
 export const prerender = false;
 
@@ -74,6 +74,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const rawIp = clientIp(request);
+  const source = detectUploadSource(request, "finalize");
   const country = request.headers.get("x-vercel-ip-country") ?? undefined;
   const city = request.headers.get("x-vercel-ip-city") ?? undefined;
   const userAgent = request.headers.get("user-agent") ?? undefined;
@@ -81,7 +82,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const published = await publishSiteFromZip(zipBytes, ttlSeconds, {
       ip: rawIp,
-      source: "website",
+      source,
       country,
       city,
       userAgent,

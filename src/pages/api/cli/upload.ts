@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { json, error, rateLimited } from "../../../lib/http";
 import { cliUploadEnabled, verifyCliApiKey } from "../../../lib/auth";
 import { isAdminSession } from "../../../lib/session";
-import { clientIp, hashIp } from "../../../lib/ip";
+import { clientIp, hashIp, detectUploadSource } from "../../../lib/ip";
 import { checkCliUploadLimits, rateLimitHeaders } from "../../../lib/ratelimit";
 import { parseTtlSeconds, prepareCliUpload } from "../../../lib/cli-upload";
 import { publishSiteFromZip } from "../../../lib/publish";
@@ -74,6 +74,7 @@ export const POST: APIRoute = async ({ request, url }) => {
   if (!prepared.ok) return error(400, prepared.code, prepared.message);
 
   const rawIp = clientIp(request);
+  const source = detectUploadSource(request, "cli");
   const country = request.headers.get("x-vercel-ip-country") ?? undefined;
   const city = request.headers.get("x-vercel-ip-city") ?? undefined;
   const userAgent = request.headers.get("user-agent") ?? undefined;
@@ -81,7 +82,7 @@ export const POST: APIRoute = async ({ request, url }) => {
   try {
     const published = await publishSiteFromZip(prepared.zipBytes, ttlSeconds, {
       ip: rawIp,
-      source: "cli",
+      source,
       country,
       city,
       userAgent,
