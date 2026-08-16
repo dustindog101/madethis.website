@@ -19,7 +19,7 @@ interface RawFile {
 /* ------------------------------------------------------------------ */
 
 const els = {
-  card: document.getElementById("drop-card") as HTMLElement,
+  card: (document.getElementById("drop-card") || document.querySelector(".drop-card")) as HTMLElement,
   zone: document.getElementById("drop-zone") as HTMLElement,
   error: document.getElementById("drop-error") as HTMLElement,
   progress: document.getElementById("drop-progress") as HTMLElement,
@@ -63,7 +63,8 @@ let pastePreviewUrl: string | null = null;
 
 function setBusy(state: boolean, stage = ""): void {
   busy = state;
-  els.card?.classList.toggle("is-busy", state);
+  const card = els.card || document.getElementById("drop-card") || document.querySelector(".drop-card");
+  card?.classList.toggle("is-busy", state);
   els.zone?.setAttribute("aria-disabled", String(state));
   els.error?.classList.remove("is-shown");
   if (els.progress) {
@@ -464,8 +465,12 @@ async function uploadZip(zipBlob: Blob, uploadTtl = ttlSeconds): Promise<void> {
 
 function showResult(fin: { ok: boolean; slug: string; url: string; expiresAt: number; files: number }): void {
   busy = false;
-  els.card?.classList.remove("is-busy");
-  els.card?.classList.add("is-done");
+  const card = els.card || document.getElementById("drop-card") || document.querySelector(".drop-card");
+  card?.classList.remove("is-busy");
+  card?.classList.add("is-done");
+  if (els.progress) {
+    els.progress.style.display = "none";
+  }
 
   const fullUrl = `${location.origin}${fin.url}`;
   if (els.slugText) els.slugText.textContent = fin.slug.toUpperCase();
@@ -490,7 +495,8 @@ function showResult(fin: { ok: boolean; slug: string; url: string; expiresAt: nu
 }
 
 function resetCard(): void {
-  els.card?.classList.remove("is-done", "is-busy");
+  const card = els.card || document.getElementById("drop-card") || document.querySelector(".drop-card");
+  card?.classList.remove("is-done", "is-busy");
   setProgress(0);
   els.error?.classList.remove("is-shown");
 }
