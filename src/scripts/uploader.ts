@@ -1,4 +1,4 @@
-/* madethis.website uploader — drag, pack, chunk-up, expire */
+/* madethis.website uploader — drag, pack, chunk-up, paste, expire */
 
 const MAX_ZIP_BYTES = 8 * 1024 * 1024;
 const MAX_FILES = 500;
@@ -42,31 +42,48 @@ const els = {
   folderInput: document.getElementById("file-folder") as HTMLInputElement,
   fileInput: document.getElementById("file-file") as HTMLInputElement,
   pills: Array.from(document.querySelectorAll<HTMLButtonElement>(".ttl-pill")),
+
+  // Paste modal elements
+  pasteModal: document.getElementById("paste-modal") as HTMLDialogElement | null,
+  pastePreviewImg: document.getElementById("paste-preview-img") as HTMLImageElement | null,
+  pasteMetaName: document.getElementById("paste-meta-name") as HTMLElement | null,
+  pasteMetaSize: document.getElementById("paste-meta-size") as HTMLElement | null,
+  pasteTtlPills: Array.from(document.querySelectorAll<HTMLButtonElement>(".paste-ttl-pill")),
+  pasteCloseBtn: document.getElementById("paste-close-btn") as HTMLButtonElement | null,
+  pasteCancelBtn: document.getElementById("paste-cancel-btn") as HTMLButtonElement | null,
+  pasteUploadBtn: document.getElementById("paste-upload-btn") as HTMLButtonElement | null,
 };
 
 let ttlSeconds = 86400;
 let busy = false;
 
+let pendingPasteFile: File | null = null;
+let pendingPasteTtl = 86400;
+let pastePreviewUrl: string | null = null;
+
 function setBusy(state: boolean, stage = ""): void {
   busy = state;
-  els.card.classList.toggle("is-busy", state);
-  els.zone.setAttribute("aria-disabled", String(state));
-  els.error.classList.remove("is-shown");
-  if (state) els.progress.style.display = "block";
-  else els.progress.style.display = "none";
-  if (stage) els.stage.textContent = stage;
+  els.card?.classList.toggle("is-busy", state);
+  els.zone?.setAttribute("aria-disabled", String(state));
+  els.error?.classList.remove("is-shown");
+  if (els.progress) {
+    els.progress.style.display = state ? "block" : "none";
+  }
+  if (stage && els.stage) els.stage.textContent = stage;
 }
 
 function setProgress(pct: number): void {
   const clamped = Math.max(0, Math.min(1, pct));
-  els.bar.style.width = `${Math.round(clamped * 100)}%`;
-  els.pct.textContent = `${Math.round(clamped * 100)}%`;
+  if (els.bar) els.bar.style.width = `${Math.round(clamped * 100)}%`;
+  if (els.pct) els.pct.textContent = `${Math.round(clamped * 100)}%`;
 }
 
 function showError(message: string): void {
   setBusy(false);
-  els.error.textContent = message;
-  els.error.classList.add("is-shown");
+  if (els.error) {
+    els.error.textContent = message;
+    els.error.classList.add("is-shown");
+  }
 }
 
 function formatBytes(n: number): string {
@@ -87,18 +104,18 @@ els.pills.forEach((pill) => {
 });
 
 /* ---- drop zone (clickable) ---- */
-els.zone.addEventListener("click", () => {
-  if (!busy) els.fileInput.click();
+els.zone?.addEventListener("click", () => {
+  if (!busy) els.fileInput?.click();
 });
-els.zone.addEventListener("keydown", (e) => {
+els.zone?.addEventListener("keydown", (e) => {
   if ((e.key === "Enter" || e.key === " ") && !busy) {
     e.preventDefault();
-    els.fileInput.click();
+    els.fileInput?.click();
   }
 });
 
 ["dragenter", "dragover"].forEach((type) => {
-  els.zone.addEventListener(type, (e) => {
+  els.zone?.addEventListener(type, (e) => {
     const dragEvent = e as DragEvent;
     if (!busy && dragEvent.dataTransfer?.items?.length) {
       e.preventDefault();
@@ -107,9 +124,9 @@ els.zone.addEventListener("keydown", (e) => {
   });
 });
 ["dragleave", "drop"].forEach((type) => {
-  els.zone.addEventListener(type, () => els.zone.classList.remove("is-dragging"));
+  els.zone?.addEventListener(type, () => els.zone?.classList.remove("is-dragging"));
 });
-els.zone.addEventListener("drop", (e) => {
+els.zone?.addEventListener("drop", (e) => {
   e.preventDefault();
   if (busy) return;
   const items = Array.from(e.dataTransfer?.items ?? []);
@@ -117,12 +134,12 @@ els.zone.addEventListener("drop", (e) => {
 });
 
 /* ---- input fallbacks ---- */
-els.folderInput.addEventListener("change", () => {
+els.folderInput?.addEventListener("change", () => {
   const files = Array.from(els.folderInput.files ?? []);
   els.folderInput.value = "";
   if (files.length) void runUpload(files.map((f) => ({ name: f.webkitRelativePath || f.name, file: f })));
 });
-els.fileInput.addEventListener("change", () => {
+els.fileInput?.addEventListener("change", () => {
   const files = Array.from(els.fileInput.files ?? []);
   els.fileInput.value = "";
   if (files.length) void runUpload(files.map((f) => ({ name: f.name, file: f })));
@@ -150,11 +167,12 @@ async function handleDropped(items: DragItem[]): Promise<void> {
           reader.readEntries(async (entries) => {
             try {
               for (const child of entries) {
-                const childPath = prefix ? `${prefix}/${child.name}` : child.name;
-                if (child.isDirectory) {
-                  await listAll(child, childPath);
-                } else {
-                  child.file((f) => addFile(childPath, f), () => {});
+                const childNode = child as FsNode;
+                const childPath = prefix ? `${prefix}/${childNode.name}` : childNode.name;
+                if (childNode.isDirectory) {
+                  await listAll(childNode, childPath);
+                } else if (childNode.file) {
+                  childNode.file((f: File) => addFile(childPath, f), () => {});
                 }
               }
               if (entries.length > 0) await readBatch();
@@ -171,8 +189,8 @@ async function handleDropped(items: DragItem[]): Promise<void> {
     const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
     if (entry) {
       try {
-        if (entry.isFile) {
-          entry.file((f) => addFile(entry.name, f), () => {});
+        if (entry.isFile && entry.file) {
+          entry.file((f: File) => addFile(entry.name, f), () => {});
         } else {
           await listAll(entry, "");
         }
@@ -189,13 +207,137 @@ async function handleDropped(items: DragItem[]): Promise<void> {
   if (files.length > 0) {
     await runUpload(files);
   } else {
-    showError("Nothing usable in that drop — want a folder, a .zip, or a single .html?");
+    showError("Nothing usable in that drop — want a folder, a .zip, an image, or a single .html?");
   }
+}
+
+/* ---- Clipboard Paste Support ---- */
+
+window.addEventListener("paste", (e: ClipboardEvent) => {
+  if (busy) return;
+
+  // Don't intercept paste inside text inputs or textareas
+  const target = e.target as HTMLElement | null;
+  if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+    return;
+  }
+
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type.startsWith("image/")) {
+      const file = item.getAsFile();
+      if (file) {
+        e.preventDefault();
+        openPasteModal(file);
+        break;
+      }
+    }
+  }
+});
+
+function generatePastedFilename(file: File): string {
+  if (file.name && file.name !== "image.png" && file.name !== "blob") {
+    return file.name;
+  }
+  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/webp" ? "webp" : file.type === "image/gif" ? "gif" : file.type === "image/svg+xml" ? "svg" : "png";
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `pasted-${stamp}.${ext}`;
+}
+
+function openPasteModal(file: File): void {
+  if (!els.pasteModal) {
+    // Fallback if modal element not present
+    void runUpload([{ name: generatePastedFilename(file), file }]);
+    return;
+  }
+
+  pendingPasteFile = file;
+  pendingPasteTtl = ttlSeconds;
+
+  els.pasteTtlPills.forEach((p) => {
+    const isThis = Number(p.dataset.ttl ?? 86400) === pendingPasteTtl;
+    p.classList.toggle("is-on", isThis);
+    p.setAttribute("aria-pressed", String(isThis));
+  });
+
+  if (pastePreviewUrl) URL.revokeObjectURL(pastePreviewUrl);
+  pastePreviewUrl = URL.createObjectURL(file);
+
+  if (els.pastePreviewImg) {
+    els.pastePreviewImg.src = pastePreviewUrl;
+  }
+
+  const filename = generatePastedFilename(file);
+  if (els.pasteMetaName) els.pasteMetaName.textContent = filename;
+  if (els.pasteMetaSize) els.pasteMetaSize.textContent = `${file.type.replace("image/", "").toUpperCase()} · ${formatBytes(file.size)}`;
+
+  try {
+    els.pasteModal.showModal();
+  } catch {
+    // Fallback if showModal throws
+    void runUpload([{ name: filename, file }], pendingPasteTtl);
+  }
+}
+
+function closePasteModal(): void {
+  if (els.pasteModal?.open) {
+    els.pasteModal.close();
+  }
+  if (pastePreviewUrl) {
+    URL.revokeObjectURL(pastePreviewUrl);
+    pastePreviewUrl = null;
+  }
+  pendingPasteFile = null;
+}
+
+els.pasteTtlPills.forEach((pill) => {
+  pill.addEventListener("click", () => {
+    els.pasteTtlPills.forEach((p) => {
+      p.classList.toggle("is-on", p === pill);
+      p.setAttribute("aria-pressed", String(p === pill));
+    });
+    pendingPasteTtl = Number(pill.dataset.ttl ?? 86400);
+  });
+});
+
+els.pasteCloseBtn?.addEventListener("click", closePasteModal);
+els.pasteCancelBtn?.addEventListener("click", closePasteModal);
+
+els.pasteUploadBtn?.addEventListener("click", () => {
+  if (!pendingPasteFile) return;
+  const file = pendingPasteFile;
+  const ttl = pendingPasteTtl;
+  const name = generatePastedFilename(file);
+  closePasteModal();
+
+  document.getElementById("drop-anchor")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  void runUpload([{ name, file }], ttl);
+});
+
+// Light-dismiss fallback for <dialog> on browsers lacking closedby support
+if (els.pasteModal && !("closedBy" in HTMLDialogElement.prototype)) {
+  els.pasteModal.addEventListener("click", (event: MouseEvent) => {
+    if (event.target !== els.pasteModal) return;
+    const rect = els.pasteModal.getBoundingClientRect();
+    const isDialogContent =
+      rect.top <= event.clientY &&
+      event.clientY <= rect.top + rect.height &&
+      rect.left <= event.clientX &&
+      event.clientX <= rect.left + rect.width;
+    if (!isDialogContent) {
+      closePasteModal();
+    }
+  });
 }
 
 /* ---- pack + upload ---- */
 
-async function runUpload(files: RawFile[]): Promise<void> {
+async function runUpload(files: RawFile[], ttlOverride?: number): Promise<void> {
   if (busy) return;
   if (files.length > MAX_FILES) {
     showError(`Too many files — the free tier allows ${MAX_FILES} per site.`);
@@ -203,9 +345,11 @@ async function runUpload(files: RawFile[]): Promise<void> {
   }
   const totalBytes = files.reduce((n, f) => n + f.file.size, 0);
   if (totalBytes === 0) {
-    showError("That folder looks empty — no bytes inside.");
+    showError("That file looks empty — no bytes inside.");
     return;
   }
+
+  const effectiveTtl = ttlOverride ?? ttlSeconds;
 
   setBusy(true, "packing");
   setProgress(0.02);
@@ -216,7 +360,7 @@ async function runUpload(files: RawFile[]): Promise<void> {
       showError(`Too heavy — a site can be up to ${formatBytes(MAX_ZIP_BYTES)} packed. Yours is ${formatBytes(zip.size)}.`);
       return;
     }
-    await uploadZip(zip);
+    await uploadZip(zip, effectiveTtl);
   } catch (err) {
     showError(err instanceof Error ? err.message : "Unexpected failure — try again.");
   }
@@ -233,16 +377,19 @@ async function buildZip(files: RawFile[]): Promise<Blob> {
   for (const { name, file } of files) {
     zip.file(name, file);
   }
-  const options: JSZip.JSZipGeneratorOptions<"blob"> & { updateCallback?: (m: { percent: number }) => void } = {
-    type: "blob",
-    compression: "DEFLATE",
-    compressionOptions: { level: 6 },
-    updateCallback: (meta) => setProgress(0.02 + 0.28 * (meta.percent / 100)),
-  };
-  return zip.generateAsync(options);
+  return zip.generateAsync(
+    {
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    },
+    (meta: { percent: number }) => {
+      setProgress(0.02 + 0.28 * (meta.percent / 100));
+    }
+  );
 }
 
-async function uploadZip(zipBlob: Blob): Promise<void> {
+async function uploadZip(zipBlob: Blob, uploadTtl = ttlSeconds): Promise<void> {
   setBusy(true, "uploading");
 
   let init: { uploadId: string };
@@ -250,7 +397,7 @@ async function uploadZip(zipBlob: Blob): Promise<void> {
     const res = await fetch("/api/upload/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ totalBytes: zipBlob.size, ttlSeconds }),
+      body: JSON.stringify({ totalBytes: zipBlob.size, ttlSeconds: uploadTtl }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error?.message ?? "Couldn't start the upload.");
@@ -301,7 +448,7 @@ async function uploadZip(zipBlob: Blob): Promise<void> {
     const res = await fetch("/api/upload/finalize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uploadId: init.uploadId, totalChunks, ttlSeconds, sha256: shaHex }),
+      body: JSON.stringify({ uploadId: init.uploadId, totalChunks, ttlSeconds: uploadTtl, sha256: shaHex }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error?.message ?? "Finalize failed");
@@ -317,19 +464,19 @@ async function uploadZip(zipBlob: Blob): Promise<void> {
 
 function showResult(fin: { ok: boolean; slug: string; url: string; expiresAt: number; files: number }): void {
   busy = false;
-  els.card.classList.remove("is-busy");
-  els.card.classList.add("is-done");
+  els.card?.classList.remove("is-busy");
+  els.card?.classList.add("is-done");
 
   const fullUrl = `${location.origin}${fin.url}`;
-  els.slugText.textContent = fin.slug.toUpperCase();
-  els.url.textContent = fin.url;
-  els.urlLink.href = fin.url;
-  els.files.textContent = `${fin.files} file${fin.files === 1 ? "" : "s"}`;
-  els.printNo.textContent = fin.slug.slice(0, 4);
+  if (els.slugText) els.slugText.textContent = fin.slug.toUpperCase();
+  if (els.url) els.url.textContent = fin.url;
+  if (els.urlLink) els.urlLink.href = fin.url;
+  if (els.files) els.files.textContent = `${fin.files} file${fin.files === 1 ? "" : "s"}`;
+  if (els.printNo) els.printNo.textContent = fin.slug.slice(0, 4);
 
-  els.open.addEventListener("click", () => window.open(fin.url, "_blank", "noopener"));
-  els.again.addEventListener("click", resetCard);
-  els.share.addEventListener("click", () => {
+  els.open?.addEventListener("click", () => window.open(fin.url, "_blank", "noopener"));
+  els.again?.addEventListener("click", resetCard);
+  els.share?.addEventListener("click", () => {
     const payload = { title: "I made this — it's temporary", text: fullUrl };
     if (navigator.share) {
       navigator.share(payload).catch(() => {});
@@ -337,18 +484,19 @@ function showResult(fin: { ok: boolean; slug: string; url: string; expiresAt: nu
       copyToClipboard(fullUrl, els.share, "Link copied ✓");
     }
   });
-  els.copy.addEventListener("click", () => copyToClipboard(fullUrl, els.copy, "Copied ✓"));
+  els.copy?.addEventListener("click", () => copyToClipboard(fullUrl, els.copy, "Copied ✓"));
 
   startCountdown(fin.expiresAt);
 }
 
 function resetCard(): void {
-  els.card.classList.remove("is-done", "is-busy");
+  els.card?.classList.remove("is-done", "is-busy");
   setProgress(0);
-  els.error.classList.remove("is-shown");
+  els.error?.classList.remove("is-shown");
 }
 
-async function copyToClipboard(text: string, btn: HTMLButtonElement, doneLabel: string): Promise<void> {
+async function copyToClipboard(text: string, btn: HTMLButtonElement | null, doneLabel: string): Promise<void> {
+  if (!btn) return;
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -377,13 +525,15 @@ function startCountdown(expiresAt: number): void {
   const tick = (): void => {
     const diff = expiresAt - Date.now();
     if (diff <= 0) {
-      els.hh.textContent = els.mm.textContent = els.ss.textContent = "00";
+      if (els.hh) els.hh.textContent = "00";
+      if (els.mm) els.mm.textContent = "00";
+      if (els.ss) els.ss.textContent = "00";
       clearInterval(startCountdown.timer);
       return;
     }
-    els.hh.textContent = String(Math.floor(diff / 3_600_000)).padStart(2, "0");
-    els.mm.textContent = String(Math.floor((diff % 3_600_000) / 60_000)).padStart(2, "0");
-    els.ss.textContent = String(Math.floor((diff % 60_000) / 1000)).padStart(2, "0");
+    if (els.hh) els.hh.textContent = String(Math.floor(diff / 3_600_000)).padStart(2, "0");
+    if (els.mm) els.mm.textContent = String(Math.floor((diff % 3_600_000) / 60_000)).padStart(2, "0");
+    if (els.ss) els.ss.textContent = String(Math.floor((diff % 60_000) / 1000)).padStart(2, "0");
   };
   tick();
   startCountdown.timer = setInterval(tick, 1000) as unknown as number;
@@ -391,6 +541,6 @@ function startCountdown(expiresAt: number): void {
 startCountdown.timer = 0;
 
 async function sha256Hex(buffer: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  const digest = await crypto.subtle.digest("SHA-256", buffer as unknown as ArrayBufferView);
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }

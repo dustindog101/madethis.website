@@ -131,6 +131,22 @@ function shellHtmlForAsset(filename: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>madethis</title></head><body></body></html>`;
 }
 
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "bmp"]);
+
+function validateBinaryFile(bytes: Uint8Array, maxBytes: number): CliUploadError | null {
+  if (bytes.byteLength === 0) {
+    return { ok: false, code: "empty_body", message: "Upload body is empty." };
+  }
+  if (bytes.byteLength > maxBytes) {
+    return {
+      ok: false,
+      code: "file_too_large",
+      message: `Single-file uploads must be at most ${maxBytes} bytes.`,
+    };
+  }
+  return null;
+}
+
 export function prepareCliUpload(
   bytes: Uint8Array,
   filenameHint: string | null,
@@ -152,9 +168,19 @@ export function prepareCliUpload(
 
   const filename = sanitizeCliFilename(
     filenameHint,
-    ct.includes("markdown") || ext === "md" || ext === "markdown" ? "index.md" : "index.html",
+    ct.includes("markdown") || ext === "md" || ext === "markdown"
+      ? "index.md"
+      : ct.startsWith("image/") || IMAGE_EXTENSIONS.has(ext)
+        ? (ext ? `image.${ext}` : "image.png")
+        : "index.html",
   );
   const fileExt = extensionOf(filename);
+
+  if (IMAGE_EXTENSIONS.has(fileExt) || ct.startsWith("image/")) {
+    const imgError = validateBinaryFile(bytes, MAX_SITE_ZIP_BYTES);
+    if (imgError) return imgError;
+    return { ok: true, zipBytes: zipSync({ [filename]: bytes }) };
+  }
 
   if (fileExt === "html" || fileExt === "htm" || ct.includes("text/html")) {
     const htmlError = validateHtml(bytes);
@@ -175,7 +201,7 @@ export function prepareCliUpload(
       return {
         ok: false,
         code: "unsupported_type",
-        message: "Unsupported file type. Use .html, .md, .js, .css, or .zip.",
+        message: "Unsupported file type. Use .html, .md, .js, .css, images, or .zip.",
       };
     }
     const needsShell = fileExt === "js" || fileExt === "mjs" || fileExt === "css";
@@ -189,6 +215,6 @@ export function prepareCliUpload(
   return {
     ok: false,
     code: "unsupported_type",
-    message: "Unsupported upload. Send .html, .md, .js, .css, static assets, or a .zip site.",
+    message: "Unsupported upload. Send .html, .md, .js, .css, images, static assets, or a .zip site.",
   };
 }

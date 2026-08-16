@@ -65,7 +65,7 @@ export MADETHIS_API_KEY='key-from-admin-panel'
 ./scripts/madethis upload dist.zip
 ```
 
-CLI accepts `.html`, `.md`, `.js`/`.css` (auto-wrapped with `index.html`), and `.zip` static sites up to 8 MB.
+CLI accepts `.html`, `.md`, `.png`/`.jpg`/`.webp`/`.gif`/`.svg`, `.js`/`.css` (auto-wrapped with `index.html`), and `.zip` static sites up to 8 MB.
 
 **API reference:** [/docs/api](https://www.madethis.website/docs/api) · [API.md](./API.md) (full examples in Python, JS, curl)
 

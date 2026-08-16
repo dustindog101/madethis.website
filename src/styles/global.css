@@ -1567,6 +1567,189 @@ button {
   }
 }
 
+/* ============================================================
+   Paste detection modal dialog
+   ============================================================ */
+
+dialog.paste-modal {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: 92vw;
+  outline: none;
+  margin: auto;
+}
+
+dialog.paste-modal::backdrop {
+  background-color: rgba(13, 14, 19, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.paste-modal__box {
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: 0 32px 80px -20px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(25, 26, 33, 0.12);
+  width: min(450px, 92vw);
+  animation: modalPop 0.2s var(--ease);
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.paste-modal__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.paste-modal__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--paper-ink);
+  background: rgba(25, 26, 33, 0.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.paste-modal__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+}
+
+.paste-modal__close {
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: rgba(25, 26, 33, 0.45);
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.paste-modal__close:hover {
+  color: var(--paper-ink);
+}
+
+.paste-modal__preview-wrapper {
+  max-height: 240px;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1.5px solid rgba(25, 26, 33, 0.15);
+  margin-bottom: 12px;
+  background-image:
+    linear-gradient(45deg, #1f202b 25%, transparent 25%),
+    linear-gradient(-45deg, #1f202b 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1f202b 75%),
+    linear-gradient(-45deg, transparent 75%, #1f202b 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  background-color: #15161e;
+}
+
+.paste-modal__preview-img {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  display: block;
+}
+
+.paste-modal__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: rgba(25, 26, 33, 0.68);
+  margin-bottom: 16px;
+}
+
+.paste-modal__sep {
+  opacity: 0.4;
+}
+
+.paste-modal__ttl-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(25, 26, 33, 0.55);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.paste-modal__ttl-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.paste-ttl-pill {
+  flex: 1;
+  border: 1.5px solid rgba(25, 26, 33, 0.22);
+  border-radius: 9px;
+  padding: 8px 12px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  transition: all 0.15s ease;
+  background: transparent;
+  color: rgba(25, 26, 33, 0.72);
+  min-height: 44px;
+}
+
+.paste-ttl-pill.is-on {
+  border-color: var(--amber);
+  color: var(--ink);
+  background: rgba(255, 178, 62, 0.22);
+  font-weight: 600;
+}
+
+.paste-ttl-pill .paste-ttl-pill__unit {
+  display: block;
+  font-size: 0.6rem;
+  opacity: 0.6;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.paste-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.paste-modal__actions .btn {
+  padding: 0 16px;
+  height: 40px;
+  font-size: 0.88rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

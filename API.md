@@ -204,12 +204,13 @@ Get your key: sign in at [/admin](https://www.madethis.website/admin) (footer **
 |-----------|--------------|----------|
 | `.html` / `.htm` | `text/html` | Served directly |
 | `.md` | `text/markdown` | Rendered in-browser with clean typography; append `?raw=1` for source |
+| Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`, `.avif`) | `image/png`, `image/jpeg`, etc. | Rendered in darkroom image viewer with countdown & embed tools; append `?raw=1` for direct binary stream |
 | `.js` / `.mjs` | `text/javascript` | Auto-wraps with shell `index.html` |
 | `.css` | `text/css` | Auto-wraps with shell `index.html` |
 | `.zip` | `application/zip` | Full static site (HTML + assets) |
 | JSON body | `application/json` | `{ "content": "...", "filename": "index.html", "ttl": 3600 }` |
 
-Max single-file size: **2 MB**. Max zip: **8 MB**.
+Max single-file size: **8 MB**. Max zip: **8 MB**.
 
 ### curl examples
 
@@ -222,6 +223,13 @@ curl -fsS -X POST "$BASE/api/cli/upload?ttl=1h" \
   -H "Authorization: Bearer $MADETHIS_API_KEY" \
   -H "Content-Type: text/html; charset=utf-8" \
   --data-binary @index.html
+
+# Image
+curl -fsS -X POST "$BASE/api/cli/upload?ttl=24h" \
+  -H "Authorization: Bearer $MADETHIS_API_KEY" \
+  -H "Content-Type: image/png" \
+  -H "X-Filename: screenshot.png" \
+  --data-binary @screenshot.png
 
 # Markdown
 curl -fsS -X POST "$BASE/api/cli/upload?ttl=24h" \

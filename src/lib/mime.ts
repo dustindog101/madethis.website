@@ -66,3 +66,11 @@ export function safeSitePath(raw: string): string | null {
 export function isTextualContentType(contentType: string): boolean {
   return contentType.startsWith("text/") || contentType.includes("json") || contentType.includes("xml") || contentType.includes("svg") || contentType.includes("javascript");
 }
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "bmp"]);
+
+export function isImagePath(pathname: string): boolean {
+  const dot = pathname.lastIndexOf(".");
+  if (dot < 0) return false;
+  return IMAGE_EXTENSIONS.has(pathname.slice(dot + 1).toLowerCase());
+}

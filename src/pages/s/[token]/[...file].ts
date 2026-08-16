@@ -4,7 +4,7 @@ import { validSlug } from "../../../lib/ids";
 import { safeSitePath, contentTypeFor } from "../../../lib/mime";
 import { readZipEntries } from "../../../lib/zip";
 import { MAX_FILES_PER_SITE } from "../../../lib/limits";
-import { resolveEntry, maybeMarkdownViewerResponse, maybeTrailingSlashRedirect, injectSiteBaseTag, siteBaseHref, isSiteHtmlPath } from "../../../lib/serve";
+import { resolveEntry, maybeMarkdownViewerResponse, maybeImageViewerResponse, maybeTrailingSlashRedirect, injectSiteBaseTag, siteBaseHref, isSiteHtmlPath } from "../../../lib/serve";
 
 export const prerender = false;
 
@@ -107,6 +107,9 @@ export const GET: APIRoute = async ({ request, params }) => {
 
   const mdView = maybeMarkdownViewerResponse(slug, wanted.pathname, wantsRaw, request.method);
   if (mdView) return mdView;
+
+  const imgView = maybeImageViewerResponse(slug, wanted.pathname, meta, wanted.data.byteLength, wantsRaw, request);
+  if (imgView) return imgView;
 
   const contentType = contentTypeFor(wanted.pathname);
   const remainingSeconds = Math.max(0, Math.floor((meta.expiresAt - Date.now()) / 1000));

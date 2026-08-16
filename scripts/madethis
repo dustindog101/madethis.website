@@ -17,10 +17,11 @@ Options:
   -h, --help         Show this help
 
 Supported files:
-  .html .htm .md .js .mjs .css .zip (full static sites)
+  .html .htm .md .js .mjs .css .png .jpg .jpeg .gif .webp .svg .avif .zip (full static sites)
 
 Examples:
   madethis upload demo.html --ttl 1h
+  madethis upload screenshot.png
   madethis upload notes.md
   madethis upload app.js
   madethis upload dist.zip
@@ -89,6 +90,14 @@ case "$EXT_LOWER" in
   html|htm) CT="text/html; charset=utf-8" ;;
   js|mjs) CT="text/javascript; charset=utf-8" ;;
   css) CT="text/css; charset=utf-8" ;;
+  png) CT="image/png" ;;
+  jpg|jpeg) CT="image/jpeg" ;;
+  gif) CT="image/gif" ;;
+  webp) CT="image/webp" ;;
+  svg) CT="image/svg+xml" ;;
+  avif) CT="image/avif" ;;
+  ico) CT="image/x-icon" ;;
+  bmp) CT="image/bmp" ;;
   *) CT="application/octet-stream" ;;
 esac
 

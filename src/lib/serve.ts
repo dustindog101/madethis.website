@@ -1,4 +1,7 @@
 import { isMarkdownPath, markdownViewerHtml } from "./markdown-viewer.js";
+import { isImagePath, contentTypeFor } from "./mime.js";
+import { imageViewerHtml } from "./image-viewer.js";
+import type { SiteMeta } from "./site.js";
 
 export function siteBaseHref(slug: string): string {
   return `/s/${slug}/`;
@@ -54,6 +57,10 @@ export function buildRawMarkdownUrl(slug: string, pathname: string): string {
   return `/s/${slug}/${pathname}?raw=1`;
 }
 
+export function buildRawImageUrl(slug: string, pathname: string): string {
+  return `/s/${slug}/${pathname}?raw=1`;
+}
+
 export function maybeMarkdownViewerResponse(
   slug: string,
   pathname: string,
@@ -81,3 +88,62 @@ export function maybeMarkdownViewerResponse(
     },
   });
 }
+
+export function maybeImageViewerResponse(
+  slug: string,
+  pathname: string,
+  meta: SiteMeta,
+  bytes: number,
+  wantsRaw: boolean,
+  request: Request,
+): Response | null {
+  if (!isImagePath(pathname) || wantsRaw) return null;
+
+  const accept = request.headers.get("accept") ?? "";
+  const fetchDest = request.headers.get("sec-fetch-dest") ?? "";
+
+  // If fetched as subresource/image (e.g. <img> tag or CSS background) or client does not want HTML, return null to serve raw bytes
+  if (fetchDest === "image" || !accept.includes("text/html")) {
+    return null;
+  }
+
+  const rawUrl = buildRawImageUrl(slug, pathname);
+  const requestUrl = new URL(request.url);
+  const fullRawUrl = new URL(rawUrl, requestUrl.origin).href;
+  const filename = pathname.split("/").pop() ?? pathname;
+  const contentType = contentTypeFor(pathname);
+
+  if (request.method === "HEAD") {
+    return new Response(null, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex, nofollow" },
+    });
+  }
+
+  const remainingSeconds = Math.max(0, Math.floor((meta.expiresAt - Date.now()) / 1000));
+  const cacheSeconds = Math.min(300, remainingSeconds);
+
+  const html = imageViewerHtml({
+    slug,
+    pathname,
+    rawUrl,
+    fullRawUrl,
+    filename,
+    expiresAt: meta.expiresAt,
+    createdAt: meta.createdAt,
+    bytes,
+    contentType,
+  });
+
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}`,
+      "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow",
+      "Referrer-Policy": "no-referrer",
+    },
+  });
+}
+

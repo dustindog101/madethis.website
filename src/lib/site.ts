@@ -19,13 +19,15 @@ export interface SiteMeta {
 }
 
 export function resolveHomepage(entries: ZipEntry[]): string | null {
+  if (entries.length === 0) return null;
+  if (entries.length === 1) return entries[0].pathname;
   const roots = entries.filter((e) => !e.pathname.includes("/"));
   const byName = (name: string) => roots.find((e) => e.pathname === name);
   if (byName("index.html")) return "index.html";
   if (byName("index.htm")) return "index.htm";
   if (byName("index.md")) return "index.md";
   if (roots.length > 0) return roots[0].pathname;
-  return null;
+  return entries[0].pathname;
 }
 
 export interface CreateSiteOptions {

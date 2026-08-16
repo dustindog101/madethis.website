@@ -70,9 +70,9 @@ const faqs = [
 
         <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop a folder, zip, or HTML file to host it">
           <span class="drop-zone__hand" aria-hidden="true">👆</span>
-          <h3 id="drop-title">Drop your site here</h3>
-          <p id="drop-sub">A folder, a .zip, or a single .html — that's all it takes.</p>
-          <span class="drop-zone__hint" id="drop-hint">click to browse · drag anywhere</span>
+          <h3 id="drop-title">Drop your site or image here</h3>
+          <p id="drop-sub">A folder, a .zip, an image, or a single .html — or paste with Ctrl+V.</p>
+          <span class="drop-zone__hint" id="drop-hint">click to browse · drag anywhere · paste clipboard</span>
         </div>
 
         <div class="ttl-row" role="group" aria-label="How long the site stays live">
@@ -129,8 +129,47 @@ const faqs = [
       <div class="film-holes" aria-hidden="true"></div>
     </div>
 
+    <!-- Hidden file inputs -->
     <input type="file" id="file-folder" multiple webkitdirectory="" hidden />
-    <input type="file" id="file-file" accept=".zip,.html,.htm" multiple hidden />
+    <input type="file" id="file-file" accept=".zip,.html,.htm,.md,.markdown,.png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.bmp,.ico,image/*" multiple hidden />
+
+    <!-- Clipboard paste detection modal -->
+    <dialog id="paste-modal" class="paste-modal" closedby="any" aria-labelledby="paste-modal-title">
+      <div class="paste-modal__box">
+        <div class="paste-modal__top">
+          <div class="paste-modal__badge mono">
+            <span class="paste-modal__dot"></span>
+            <span id="paste-modal-title">Pasted Image Detected</span>
+          </div>
+          <button class="paste-modal__close" id="paste-close-btn" type="button" aria-label="Close modal">&times;</button>
+        </div>
+
+        <div class="paste-modal__preview-wrapper">
+          <img id="paste-preview-img" class="paste-modal__preview-img" src="" alt="Pasted image preview" />
+        </div>
+
+        <div class="paste-modal__meta mono">
+          <span id="paste-meta-name">pasted-image.png</span>
+          <span class="paste-modal__sep">•</span>
+          <span id="paste-meta-size">0 KB</span>
+        </div>
+
+        <div class="paste-modal__ttl-label mono">Select lifetime</div>
+        <div class="paste-modal__ttl-row" role="group" aria-label="How long the pasted image stays live">
+          <button class="paste-ttl-pill" type="button" data-ttl="3600" aria-pressed="false">
+            01:00 <span class="paste-ttl-pill__unit">hour</span>
+          </button>
+          <button class="paste-ttl-pill is-on" type="button" data-ttl="86400" aria-pressed="true">
+            24:00 <span class="paste-ttl-pill__unit">hours</span>
+          </button>
+        </div>
+
+        <div class="paste-modal__actions">
+          <button class="btn btn--ghost" id="paste-cancel-btn" type="button">Cancel</button>
+          <button class="btn btn--primary" id="paste-upload-btn" type="button">Host image →</button>
+        </div>
+      </div>
+    </dialog>
   </section>
 
   <section class="section" id="drop">
