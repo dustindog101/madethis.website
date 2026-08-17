@@ -54,6 +54,7 @@ export async function publishSiteFromZip(
     userAgent: meta.userAgent,
     country: meta.country,
     city: meta.city,
+    region: meta.region,
   }).catch(() => {});
 
   return {

@@ -1,10 +1,10 @@
 import type { APIRoute } from "astro";
 import { json, error, rateLimited } from "../../../lib/http";
 import { newUploadId } from "../../../lib/ids";
-import { MAX_CHUNK_BYTES, MAX_SITE_ZIP_BYTES, UPLOAD_TTL_OPTIONS } from "../../../lib/limits";
-import { clientIp, hashIp } from "../../../lib/ip";
+import { MAX_CHUNK_BYTES, MAX_SITE_ZIP_BYTES, UPLOAD_TTL_OPTIONS, tmpUploadMetaPath } from "../../../lib/limits";
+import { extractClientContext, hashIp } from "../../../lib/ip";
 import { checkWebUploadLimits, rateLimitHeaders } from "../../../lib/ratelimit";
-import { storageReady } from "../../../lib/storage";
+import { storage, storageReady } from "../../../lib/storage";
 
 export const prerender = false;
 
@@ -26,7 +26,8 @@ export const POST: APIRoute = async ({ request }) => {
     return error(503, "storage_unavailable", "Upload storage is not configured.");
   }
 
-  const ipHash = hashIp(clientIp(request));
+  const context = extractClientContext(request, "init");
+  const ipHash = hashIp(context.ip);
   const rate = await checkWebUploadLimits(ipHash);
   if (!rate.ok) {
     return rateLimited(rate.resetAt);
@@ -44,12 +45,32 @@ export const POST: APIRoute = async ({ request }) => {
   if (!(UPLOAD_TTL_OPTIONS as readonly number[]).includes(ttlSeconds)) {
     return error(400, "invalid_ttl");
   }
+
+  const uploadId = newUploadId();
+  const meta = {
+    uploadId,
+    ip: context.ip,
+    source: context.source,
+    country: context.country,
+    city: context.city,
+    region: context.region,
+    userAgent: context.userAgent,
+    totalBytes: body.totalBytes,
+    ttlSeconds,
+    createdAt: Date.now(),
+  };
+
+  await storage
+    .put(tmpUploadMetaPath(uploadId), new TextEncoder().encode(JSON.stringify(meta)), "application/json")
+    .catch(() => {});
+
   return json(
     {
-      uploadId: newUploadId(),
+      uploadId,
       chunkSize: MAX_CHUNK_BYTES,
     },
     200,
     rateLimitHeaders(rate),
   );
 };
+

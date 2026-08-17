@@ -15,6 +15,7 @@ export interface UploadLogRecord {
   userAgent?: string;
   country?: string;
   city?: string;
+  region?: string;
 }
 
 export interface UploadLogMetrics {
@@ -88,6 +89,7 @@ async function reconstructLogsFromSites(): Promise<UploadLogRecord[]> {
           userAgent: meta.userAgent,
           country: meta.country,
           city: meta.city,
+          region: meta.region,
         });
       }
     }
@@ -160,6 +162,7 @@ export async function getUploadLogs(options: GetLogsOptions = {}): Promise<Pagin
         (l.homepage && l.homepage.toLowerCase().includes(search)) ||
         (l.country && l.country.toLowerCase().includes(search)) ||
         (l.city && l.city.toLowerCase().includes(search)) ||
+        (l.region && l.region.toLowerCase().includes(search)) ||
         (l.userAgent && l.userAgent.toLowerCase().includes(search)),
     );
   }

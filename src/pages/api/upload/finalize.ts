@@ -7,11 +7,11 @@ import {
   MAX_SITE_ZIP_BYTES,
   UPLOAD_TTL_OPTIONS,
   tmpChunkPath,
+  tmpUploadMetaPath,
 } from "../../../lib/limits";
 import { storage, storageReady } from "../../../lib/storage";
 import { publishSiteFromZip } from "../../../lib/publish";
-
-import { clientIp, detectUploadSource } from "../../../lib/ip";
+import { extractClientContext } from "../../../lib/ip";
 
 export const prerender = false;
 
@@ -73,18 +73,31 @@ export const POST: APIRoute = async ({ request }) => {
     return error(422, "checksum_mismatch");
   }
 
-  const rawIp = clientIp(request);
-  const source = detectUploadSource(request, "finalize");
-  const country = request.headers.get("x-vercel-ip-country") ?? undefined;
-  const city = request.headers.get("x-vercel-ip-city") ?? undefined;
-  const userAgent = request.headers.get("user-agent") ?? undefined;
+  let initialContext: any = null;
+  try {
+    const rawMeta = await storage.get(tmpUploadMetaPath(body.uploadId));
+    if (rawMeta) {
+      initialContext = JSON.parse(new TextDecoder().decode(rawMeta));
+    }
+  } catch {
+    /* fallback to request context */
+  }
+
+  const currentContext = extractClientContext(request, "finalize");
+  const ip = initialContext?.ip || currentContext.ip;
+  const source = initialContext?.source || currentContext.source;
+  const country = initialContext?.country || currentContext.country;
+  const city = initialContext?.city || currentContext.city;
+  const region = initialContext?.region || currentContext.region;
+  const userAgent = initialContext?.userAgent || currentContext.userAgent;
 
   try {
     const published = await publishSiteFromZip(zipBytes, ttlSeconds, {
-      ip: rawIp,
+      ip,
       source,
       country,
       city,
+      region,
       userAgent,
     });
     await cleanupChunks(body.uploadId, totalChunks);
@@ -119,7 +132,10 @@ export const POST: APIRoute = async ({ request }) => {
 };
 
 async function cleanupChunks(uploadId: string, totalChunks: number): Promise<void> {
-  await Promise.allSettled(
-    Array.from({ length: totalChunks }, (_, i) => storage.delete(tmpChunkPath(uploadId, i))),
+  const deletes: Promise<any>[] = Array.from({ length: totalChunks }, (_, i) =>
+    storage.delete(tmpChunkPath(uploadId, i)),
   );
+  deletes.push(storage.delete(tmpUploadMetaPath(uploadId)));
+  await Promise.allSettled(deletes);
 }
+

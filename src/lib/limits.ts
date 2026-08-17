@@ -25,3 +25,7 @@ export function siteMetaPath(slug: string): string {
 export function tmpChunkPath(uploadId: string, index: number): string {
   return `${TMP_PREFIX}${uploadId}/${index}`;
 }
+
+export function tmpUploadMetaPath(uploadId: string): string {
+  return `${TMP_PREFIX}${uploadId}/meta.json`;
+}

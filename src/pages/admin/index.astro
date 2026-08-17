@@ -433,7 +433,8 @@ const authed = await isAdminSession(Astro.request);
           } else {
             tbody.innerHTML = data.records.map((log: any) => {
               const exp = formatExpires(log.expiresAt);
-              const geo = log.city || log.country ? ` (${[log.city, log.country].filter(Boolean).join(", ")})` : "";
+              const loc = [log.city, log.region, log.country].filter(Boolean).join(", ");
+              const geo = loc ? ` (${loc})` : "";
               const fullUrl = `${window.location.origin}/s/${log.slug}/`;
 
               return `

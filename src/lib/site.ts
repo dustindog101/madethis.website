@@ -16,6 +16,7 @@ export interface SiteMeta {
   userAgent?: string;
   country?: string;
   city?: string;
+  region?: string;
 }
 
 export function resolveHomepage(entries: ZipEntry[]): string | null {
@@ -36,6 +37,7 @@ export interface CreateSiteOptions {
   userAgent?: string;
   country?: string;
   city?: string;
+  region?: string;
 }
 
 export async function createSite(
@@ -60,6 +62,7 @@ export async function createSite(
     userAgent: options?.userAgent,
     country: options?.country,
     city: options?.city,
+    region: options?.region,
   };
   const metaBytes = new TextEncoder().encode(JSON.stringify(meta));
   await storage.put(siteMetaPath(slug), metaBytes, "application/json");

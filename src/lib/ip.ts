@@ -2,6 +2,15 @@ import { createHash } from "node:crypto";
 
 export type UploadSource = "website" | "cli" | "api";
 
+export interface ClientContext {
+  ip: string;
+  source: UploadSource;
+  country?: string;
+  city?: string;
+  region?: string;
+  userAgent?: string;
+}
+
 /** Robust multi-proxy client IP extraction (Vercel, Cloudflare, Fastly, Reverse Proxies). */
 export function clientIp(request: Request): string {
   const headers = request.headers;
@@ -45,7 +54,7 @@ export function hashIp(ip: string): string {
 }
 
 /** Automatically detect upload origin (website dropzone vs CLI tool vs API). */
-export function detectUploadSource(request: Request, endpoint: "cli" | "finalize"): UploadSource {
+export function detectUploadSource(request: Request, endpoint: "cli" | "finalize" | "init" = "finalize"): UploadSource {
   const auth = request.headers.get("authorization") ?? "";
   const apiKey = request.headers.get("x-api-key") ?? "";
   const ua = (request.headers.get("user-agent") ?? "").toLowerCase();
@@ -55,13 +64,13 @@ export function detectUploadSource(request: Request, endpoint: "cli" | "finalize
 
   // If endpoint is CLI or has explicit API Bearer authentication
   if (auth.startsWith("Bearer ") || apiKey) {
-    if (ua.includes("curl") || ua.includes("madethis") || ua.includes("wget")) {
+    if (ua.includes("curl") || ua.includes("madethis") || ua.includes("wget") || ua.includes("powershell")) {
       return "cli";
     }
     return "api";
   }
 
-  if (ua.includes("curl") || ua.includes("wget") || ua.includes("madethis-cli")) {
+  if (ua.includes("curl") || ua.includes("wget") || ua.includes("madethis-cli") || ua.includes("powershell")) {
     return "cli";
   }
 
@@ -70,7 +79,9 @@ export function detectUploadSource(request: Request, endpoint: "cli" | "finalize
     ua.includes("go-http-client") ||
     ua.includes("postman") ||
     ua.includes("insomnia") ||
-    ua.includes("axios")
+    ua.includes("axios") ||
+    ua.includes("undici") ||
+    ua.includes("node-fetch")
   ) {
     return "api";
   }
@@ -86,3 +97,40 @@ export function detectUploadSource(request: Request, endpoint: "cli" | "finalize
 
   return "website";
 }
+
+/** Extract full IP, origin, and geolocation context for request logging. */
+export function extractClientContext(
+  request: Request,
+  endpoint: "cli" | "finalize" | "init" = "init",
+): ClientContext {
+  const ip = clientIp(request);
+  const source = detectUploadSource(request, endpoint);
+  const headers = request.headers;
+
+  const country =
+    headers.get("x-vercel-ip-country")?.trim() ||
+    headers.get("cf-ipcountry")?.trim() ||
+    undefined;
+
+  const city =
+    headers.get("x-vercel-ip-city")?.trim() ||
+    headers.get("cf-ipcity")?.trim() ||
+    undefined;
+
+  const region =
+    headers.get("x-vercel-ip-country-region")?.trim() ||
+    headers.get("cf-region")?.trim() ||
+    undefined;
+
+  const userAgent = headers.get("user-agent")?.trim() || undefined;
+
+  return {
+    ip,
+    source,
+    country,
+    city,
+    region,
+    userAgent,
+  };
+}
+
