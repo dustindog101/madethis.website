@@ -93,12 +93,14 @@ export function isExpired(meta: SiteMeta): boolean {
 }
 
 /**
- * Deletes the zip first, then the meta — the meta is the "index" of the
- * site, so removing it last keeps read paths from ever racing into a
- * half-deleted state. Also removes the entry from the log index.
+ * Deletes the zip first, then the meta. Removing the zip frees the storage space
+ * immediately, while the lightweight log record remains in config/upload-logs.json
+ * so admin upload history is preserved.
  */
-export async function deleteSite(slug: string): Promise<void> {
+export async function deleteSite(slug: string, removeLog = false): Promise<void> {
   await storage.delete(siteZipPath(slug));
   await storage.delete(siteMetaPath(slug));
-  await deleteUploadLogEntry(slug).catch(() => {});
+  if (removeLog) {
+    await deleteUploadLogEntry(slug).catch(() => {});
+  }
 }
