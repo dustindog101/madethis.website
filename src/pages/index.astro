@@ -4,43 +4,41 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 const faqs = [
   {
     q: "How long does a site live?",
-    a: "You pick 1 hour or 24 hours when you drop it. When the clock hits zero the files are deleted from storage — no leftovers, no warnings, no way to get them back. That's the feature.",
+    a: "You choose 1 hour or 24 hours when uploading. Once the time is up, your files are permanently deleted from storage with no backups kept.",
   },
   {
     q: "Do I need an account?",
-    a: "No. Drop, get a link, share it. There is no login, no dashboard, nothing to remember. The link is your only key.",
+    a: "No. Just drop your files, get your link, and share it. No signups, logins, or dashboards required.",
   },
   {
     q: "What can I host?",
-    a: "Anything static: HTML, CSS, JavaScript, images, fonts, PDFs — the output of a build, or plain hand-written pages. Up to 8 MB compressed in a zip, max 500 files. No server code, which is the point: it's static hosting, done somewhere else.",
+    a: "Any static files: HTML, CSS, JavaScript, images, fonts, and PDFs (up to 8 MB compressed in a zip, and up to 500 files). Server-side code like PHP or Node.js is not supported.",
   },
   {
     q: "What counts as a folder drop?",
-    a: "A folder with an index.html in it is the classic case. Zips work too, and a lone .html file will get wrapped up automatically. Subfolders and their paths are preserved.",
+    a: "Any folder with an index.html file works out of the box. You can also upload a .zip archive, a single .html file, or an image. Subdirectories and relative paths are preserved.",
   },
   {
     q: "Why madethis.website and not GitHub Pages?",
-    a: "Because sometimes you just need it now — a demo for a client, a peek for a friend, a prototype before the repo even exists. Pages and Cloudflare Pages are permanent homes; this is a darkroom print. Quick, anonymous, and it goes away on its own.",
+    a: "GitHub Pages and Cloudflare Pages are designed for permanent sites. madethis.website is for when you need a quick, temporary URL right away (like sharing a client preview or prototype) without creating a repository, configuring DNS, or managing hosting accounts.",
   },
   {
     q: "Is there a catch?",
-    a: "The catch is the whole idea: it expires. Files are scrubbed on the timer, and the cleanup cron keeps storage honest. Suppose the site is gone, the URL shows a polite dead-end instead. That's it — that's the product.",
+    a: "The only catch is that hosting is strictly temporary. When the timer runs out, your files are permanently deleted and the link stops working.",
   },
 ];
 ---
 
 <BaseLayout>
-  <section class="hero" aria-label="Drop your site">
+  <section class="hero" id="drop" aria-label="Drop your site">
     <div>
       <span class="eyebrow">Temporary static hosting</span>
       <h1 class="display hero__headline">
         Made this.
-        <em>Prove it.</em>
+        <em>Share it.</em>
       </h1>
       <p class="hero__sub">
-        Drop a folder, get a <strong>live link</strong>. No account, no build step,
-        nothing to keep. Your site lives for a while — then it&rsquo;s gone,
-        because the best side proof isn&rsquo;t forever.
+        Drop a folder or file to get a <strong>live link</strong> instantly. No accounts, no build steps, and no setup. Your site stays online for up to 24 hours, then deletes automatically.
       </p>
       <div class="hero__cta-row">
         <a class="btn btn--primary" href="#drop">Drop a folder</a>
@@ -71,7 +69,7 @@ const faqs = [
         <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop a folder, zip, or HTML file to host it">
           <span class="drop-zone__hand" aria-hidden="true">👆</span>
           <h3 id="drop-title">Drop your site or image here</h3>
-          <p id="drop-sub">A folder, a .zip, an image, or a single .html — or paste with Ctrl+V.</p>
+          <p id="drop-sub">Drop a folder, .zip, image, or .html file, or paste with Ctrl+V.</p>
           <span class="drop-zone__hint" id="drop-hint">click to browse · drag anywhere · paste clipboard</span>
         </div>
 
@@ -172,30 +170,30 @@ const faqs = [
     </dialog>
   </section>
 
-  <section class="section" id="drop">
+  <section class="section" id="how">
     <div class="section__head">
-      <span class="eyebrow">The one-step flow</span>
-      <h2 class="display section__title">From zero to URL in four perf frames</h2>
+      <span class="eyebrow">How it works</span>
+      <h2 class="display section__title">From files to a live URL in seconds</h2>
       <p class="section__lede">
-        The whole product is one gesture. Everything else is table stakes.
+        Upload static assets and get an instant link without setting up hosting or signing in.
       </p>
     </div>
 
     <div class="steps">
       <article class="step">
         <div class="step__icon" aria-hidden="true">📦</div>
-        <h3>Drop it</h3>
-        <p>Drag a built folder, a .zip, or a lone .html file onto the card up top. Nothing is uploaded until you drop.</p>
+        <h3>Drop your files</h3>
+        <p>Drag a folder, .zip archive, image, or .html file into the dropzone above.</p>
       </article>
       <article class="step">
         <div class="step__icon" aria-hidden="true">🔗</div>
         <h3>Get a live link</h3>
-        <p>Files queue to storage in the background. Seconds later you get madethis.website/s/… — public, HTTPS, ready to share.</p>
+        <p>Files upload in seconds and you get an instant HTTPS link ready to share with anyone.</p>
       </article>
       <article class="step">
         <div class="step__icon" aria-hidden="true">⏳</div>
-        <h3>Watch it expire</h3>
-        <p>A countdown runs from the moment it's live. Hit zero and the files are gone — deleted, not just hidden. Living on borrowed time is the feature.</p>
+        <h3>Expires automatically</h3>
+        <p>A live countdown runs from the moment your site goes live. When it hits zero, files are permanently deleted.</p>
       </article>
     </div>
   </section>
@@ -203,48 +201,47 @@ const faqs = [
   <div class="ribbon" aria-hidden="true">
     <div class="ribbon__inner">
       <span class="ribbon__digits">24:00:00</span>
-      <span class="ribbon__copy">That's the maximum shelf life of anything hosted here.<br />One hour, if you only need to prove a point fast.</span>
+      <span class="ribbon__copy">Maximum lifetime for any site hosted here.<br />Choose 1 hour or 24 hours based on your needs.</span>
     </div>
   </div>
 
   <section class="section" id="why">
     <div class="section__head">
       <span class="eyebrow">Why temporary</span>
-      <h2 class="display section__title">Permanence is overrated</h2>
+      <h2 class="display section__title">Built for things that don't need to last</h2>
       <p class="section__lede">
-        Not everything deserves a DNS record that outlives your portfolio. Some
-        things only need to exist long enough to be seen.
+        Not every prototype or mockup needs permanent infrastructure. Share quick previews without cluttering accounts or managing servers.
       </p>
     </div>
 
     <div class="tiles">
       <article class="tile">
         <span class="tile__tag">for demos</span>
-        <h3>Client previews without deployment pipelines</h3>
-        <p>Drop a mockup, send the link, get feedback, and the evidence disappears when it's done. No stale branches haunting the internet.</p>
+        <h3>Client previews without pipelines</h3>
+        <p>Share work-in-progress demos with clients or teammates without configuring CI/CD pipelines or creating temporary subdomains.</p>
       </article>
       <article class="tile">
         <span class="tile__tag">for prototypes</span>
-        <h3>Ship the idea, not the infra</h3>
-        <p>An AI-generated landing page or a hand-written one — either way it deserves a URL today, not a cloud account and three hours of clicking.</p>
+        <h3>Fast prototype sharing</h3>
+        <p>Whether testing a generated layout or a hand-crafted design, get a shareable URL immediately without configuring hosting providers.</p>
       </article>
       <article class="tile">
         <span class="tile__tag">for privacy</span>
-        <h3>No account, no profile, no paper trail</h3>
-        <p>Anonymous by default: no email, no signup, no analytics session. The slug you hold is the only record that a site ever existed.</p>
+        <h3>Private by default</h3>
+        <p>No email required, no signup flow, and no user tracking. The generated link is the only record that the site exists.</p>
       </article>
       <article class="tile">
-        <span class="tile__tag">for the sandbox</span>
-        <h3>Abuse the sandbox, lose the toy</h3>
-        <p>Temporary hosting stays cheap because nothing is permanent. If a link goes bad, it fades in hours instead of being flagged for weeks.</p>
+        <span class="tile__tag">zero cleanup</span>
+        <h3>Automatic cleanup</h3>
+        <p>Files are automatically deleted when the timer ends, so you never have to clean up old test sites, unused storage, or forgotten staging links.</p>
       </article>
     </div>
   </section>
 
   <section class="section" id="faq">
     <div class="section__head">
-      <span class="eyebrow">Questions</span>
-      <h2 class="display section__title">Honest answers</h2>
+      <span class="eyebrow">FAQ</span>
+      <h2 class="display section__title">Frequently asked questions</h2>
     </div>
 
     <div class="faq">

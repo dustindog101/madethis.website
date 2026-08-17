@@ -13,14 +13,14 @@ function escapeHtml(text: string): string {
 }
 
 function brandedPage(title: string, message: string, status: number, extra?: string): Response {
-  const stamp = status === 410 ? "expired" : status === 404 ? "offline" : "broken";
+  const stamp = status === 410 ? "expired" : status === 404 ? "not found" : "error";
   const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>${escapeHtml(title)} — madethis.website</title>
+<title>${escapeHtml(title)} · madethis.website</title>
 <meta name="color-scheme" content="dark"/>
 <style>
   body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#0d0e13;color:#e6e3d8;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:24px;box-sizing:border-box}
@@ -38,7 +38,7 @@ function brandedPage(title: string, message: string, status: number, extra?: str
   <span class="stamp">${stamp}</span>
   <h1>${escapeHtml(title)}</h1>
   <p>${escapeHtml(message)}</p>
-  <a href="/">Drop a new site — back to madethis.website</a>
+  <a href="/">Back to madethis.website</a>
   ${extra ? `<div class="ticker">${escapeHtml(extra)}</div>` : ""}
 </div>
 </body>
@@ -67,17 +67,17 @@ export const GET: APIRoute = async ({ request, params }) => {
   }
 
   if (!slug || !validSlug(slug)) {
-    return brandedPage("Not Found.", "That URL slug doesn't match any site — classic broken link.", 404);
+    return brandedPage("Not Found", "That URL does not match any site.", 404);
   }
 
   const meta = await readSiteMeta(slug);
   if (!meta) {
-    return brandedPage("Dead link territory.", "A site with this address either never existed or was already scrubbed. No print here.", 404);
+    return brandedPage("Site Not Found", "A site with this address either never existed or has expired and been deleted.", 404);
   }
   if (isExpired(meta)) {
     return brandedPage(
-      "This link expired.",
-      "Like a good print, this one had a shelf life. It reached its expiration and was deleted — that's the whole point.",
+      "Site Expired",
+      "This site reached its expiration time and was permanently deleted.",
       410,
       `Expired ${new Date(meta.expiresAt).toISOString()}`,
     );
@@ -86,15 +86,15 @@ export const GET: APIRoute = async ({ request, params }) => {
   const zipBytes = await readSiteZip(slug);
   const entries = zipBytes ? readZipEntries(zipBytes, MAX_FILES_PER_SITE) : null;
   if (!entries) {
-    return brandedPage("Site is damaged.", "The archive behind this site can't be read. It was likely corrupted in transit.", 500);
+    return brandedPage("Site Error", "The archive for this site could not be read.", 500);
   }
   if (entries.length === 0) {
-    return brandedPage("Empty envelope.", "This site has no readable files in its archive.", 500);
+    return brandedPage("Empty Site", "This site has no readable files in its archive.", 500);
   }
 
   const requestPath = rawPath && rawPath !== "" ? safeSitePath(rawPath) : null;
   if (rawPath && rawPath !== "" && !requestPath) {
-    return brandedPage("Safety, first.", "That path contains characters we won't serve (traversal, backslashes, control chars).", 400);
+    return brandedPage("Invalid Path", "That path contains invalid characters (traversal, backslashes, control chars).", 400);
   }
 
   const target = requestPath ?? meta.homepage ?? "";
@@ -102,7 +102,7 @@ export const GET: APIRoute = async ({ request, params }) => {
   const wanted = wantedPath ? entries.find((e) => e.pathname === wantedPath) : null;
 
   if (!wanted) {
-    return brandedPage("Nothing at that path.", "The site exists, but this page doesn't. Custom 404.html pages are on the roadmap.", 404);
+    return brandedPage("File Not Found", "The requested file was not found in this site archive.", 404);
   }
 
   const mdView = maybeMarkdownViewerResponse(slug, wanted.pathname, wantsRaw, request.method);

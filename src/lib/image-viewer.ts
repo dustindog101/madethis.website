@@ -30,15 +30,15 @@ export function imageViewerHtml(options: ImageViewerOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <meta name="robots" content="noindex,nofollow"/>
 <meta name="color-scheme" content="dark"/>
-<title>${safeFilename} — madethis.website</title>
+<title>${safeFilename} · madethis.website</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
 
 <meta property="og:type" content="article"/>
-<meta property="og:title" content="${safeFilename} — madethis.website"/>
+<meta property="og:title" content="${safeFilename} · madethis.website"/>
 <meta property="og:description" content="Temporary image hosted on madethis.website · Ephemeral static hosting."/>
 <meta property="og:image" content="${safeFullRawUrl}"/>
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="${safeFilename} — madethis.website"/>
+<meta name="twitter:title" content="${safeFilename} · madethis.website"/>
 <meta name="twitter:image" content="${safeFullRawUrl}"/>
 <meta name="theme-color" content="#0d0e13"/>
 
@@ -463,7 +463,7 @@ export function imageViewerHtml(options: ImageViewerOptions): string {
 
 <header class="toolbar">
   <div class="toolbar__left">
-    <a class="brand" href="/" title="Drop a new site — back to madethis.website">
+    <a class="brand" href="/" title="Back to madethis.website">
       <span class="brand__mark" aria-hidden="true">M</span>
       <span>made<span class="brand__accent">this</span></span>
     </a>

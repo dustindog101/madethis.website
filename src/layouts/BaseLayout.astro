@@ -7,8 +7,8 @@ interface Props {
 }
 
 const {
-  title = "madethis.website — temporary websites, no account",
-  description = "Drag a folder. Get a live link. It expires on its own. Temporary static hosting with zero setup — no account, no build step, free.",
+  title = "madethis.website · Temporary static hosting",
+  description = "Drop a folder or file to get a live link instantly. Free temporary static hosting with no account, no build steps, and automatic expiration.",
 } = Astro.props;
 
 const SITE = "https://madethis.website";
@@ -39,7 +39,7 @@ const SITE = "https://madethis.website";
 
       <header class="nav" id="top">
         <div class="nav__inner">
-          <a class="brand" href="/" aria-label="madethis.website — home">
+          <a class="brand" href="/" aria-label="madethis.website home">
             <span class="brand__mark" aria-hidden="true">M</span>
             <span>made<span class="brand__accent">this</span>.website</span>
           </a>
@@ -63,7 +63,7 @@ const SITE = "https://madethis.website";
       <footer class="footer">
         <div class="footer__inner">
           <div class="footer__note">
-            made<span style="color: var(--amber)">this</span>.website — drop it, share it, let it go
+            made<span style="color: var(--amber)">this</span>.website · Drop it, share it, let it expire
           </div>
           <ul class="footer__links">
             <li><a href="#how">How it works</a></li>

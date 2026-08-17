@@ -13,7 +13,7 @@ const authed = await isAdminSession(Astro.request);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Admin Dashboard — madethis.website</title>
+    <title>Admin Dashboard · madethis.website</title>
     <meta name="color-scheme" content="dark" />
   </head>
   <body class="admin-page">
@@ -35,7 +35,7 @@ const authed = await isAdminSession(Astro.request);
       {!configured ? (
         <section class="admin__card">
           <h1>Create admin</h1>
-          <p class="admin__lede">First visit only — pick a username and password. No Vercel env vars required.</p>
+          <p class="admin__lede">First visit only: choose a username and password. No environment variables required.</p>
           <form class="admin__form" id="setup-form">
             <label>
               <span>Username</span>

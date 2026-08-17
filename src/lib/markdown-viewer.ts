@@ -176,7 +176,7 @@ export function markdownViewerHtml(title: string, rawUrl: string): string {
       el.innerHTML = render(md);
       el.removeAttribute("aria-busy");
       const h1 = el.querySelector("h1");
-      if (h1) document.title = h1.textContent + " — madethis.website";
+      if (h1) document.title = h1.textContent + " · madethis.website";
     })
     .catch(() => {
       el.innerHTML = '<p class="error">Could not render this markdown file.</p>';

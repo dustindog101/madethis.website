@@ -196,7 +196,7 @@ async function handleDropped(items: DragItem[]): Promise<void> {
           await listAll(entry, "");
         }
       } catch {
-        showError("Couldn't read that folder — try the browse button instead.");
+        showError("Couldn't read that folder. Try using the file browser instead.");
         return;
       }
     } else {
@@ -208,7 +208,7 @@ async function handleDropped(items: DragItem[]): Promise<void> {
   if (files.length > 0) {
     await runUpload(files);
   } else {
-    showError("Nothing usable in that drop — want a folder, a .zip, an image, or a single .html?");
+    showError("No valid files found. Please upload a folder, .zip, image, or .html file.");
   }
 }
 
@@ -341,12 +341,12 @@ if (els.pasteModal && !("closedBy" in HTMLDialogElement.prototype)) {
 async function runUpload(files: RawFile[], ttlOverride?: number): Promise<void> {
   if (busy) return;
   if (files.length > MAX_FILES) {
-    showError(`Too many files — the free tier allows ${MAX_FILES} per site.`);
+    showError(`Too many files. The limit is ${MAX_FILES} files per upload.`);
     return;
   }
   const totalBytes = files.reduce((n, f) => n + f.file.size, 0);
   if (totalBytes === 0) {
-    showError("That file looks empty — no bytes inside.");
+    showError("The selected file is empty.");
     return;
   }
 
@@ -358,12 +358,12 @@ async function runUpload(files: RawFile[], ttlOverride?: number): Promise<void> 
   try {
     const zip = await buildZip(files);
     if (zip.size > MAX_ZIP_BYTES) {
-      showError(`Too heavy — a site can be up to ${formatBytes(MAX_ZIP_BYTES)} packed. Yours is ${formatBytes(zip.size)}.`);
+      showError(`File size exceeds limit (${formatBytes(MAX_ZIP_BYTES)} packed). Your upload is ${formatBytes(zip.size)}.`);
       return;
     }
     await uploadZip(zip, effectiveTtl);
   } catch (err) {
-    showError(err instanceof Error ? err.message : "Unexpected failure — try again.");
+    showError(err instanceof Error ? err.message : "Upload failed. Please try again.");
   }
 }
 
@@ -428,12 +428,12 @@ async function uploadZip(zipBlob: Blob, uploadTtl = ttlSeconds): Promise<void> {
           },
           body: chunk,
         });
-        if (res.status === 413) throw new Error("That chunk exceeded the server's limit — the site is too big.");
+        if (res.status === 413) throw new Error("Upload chunk exceeded server limit.");
         if (!res.ok) throw new Error("chunk rejected");
         break;
       } catch (err) {
         attempt++;
-        if (attempt >= 3) throw new Error("Upload interrupted — check your connection and try again.");
+        if (attempt >= 3) throw new Error("Upload interrupted. Please check your connection and try again.");
         await new Promise((r) => setTimeout(r, 600 * attempt));
       }
     }
@@ -482,7 +482,7 @@ function showResult(fin: { ok: boolean; slug: string; url: string; expiresAt: nu
   els.open?.addEventListener("click", () => window.open(fin.url, "_blank", "noopener"));
   els.again?.addEventListener("click", resetCard);
   els.share?.addEventListener("click", () => {
-    const payload = { title: "I made this — it's temporary", text: fullUrl };
+    const payload = { title: "Temporary site on madethis.website", text: fullUrl };
     if (navigator.share) {
       navigator.share(payload).catch(() => {});
     } else {
