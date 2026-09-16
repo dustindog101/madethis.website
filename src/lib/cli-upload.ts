@@ -1,6 +1,7 @@
-import { zipSync } from "fflate";
+import { zipSync, type Zippable } from "fflate";
 import { MAX_FILES_PER_SITE, MAX_SITE_ZIP_BYTES } from "./limits.js";
 import { readZipEntries } from "./zip.js";
+import { fflateEntryLevel } from "./zip-compression.js";
 
 const HTML_MARKERS = [/<!doctype\s+html/i, /<html[\s>]/i];
 const ZIP_MAGIC = [0x50, 0x4b];
@@ -132,6 +133,16 @@ function shellHtmlForAsset(filename: string): string {
 }
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "bmp"]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogg", "ogv"]);
+const CLI_DEFLATE_LEVEL = 9 as const;
+
+function zipFiles(files: Record<string, Uint8Array>): Uint8Array {
+  const packed: Zippable = {};
+  for (const [name, data] of Object.entries(files)) {
+    packed[name] = [data, { level: fflateEntryLevel(name, CLI_DEFLATE_LEVEL) }];
+  }
+  return zipSync(packed, { mem: 12 });
+}
 
 function validateBinaryFile(bytes: Uint8Array, maxBytes: number): CliUploadError | null {
   if (bytes.byteLength === 0) {
@@ -172,26 +183,34 @@ export function prepareCliUpload(
       ? "index.md"
       : ct.startsWith("image/") || IMAGE_EXTENSIONS.has(ext)
         ? (ext ? `image.${ext}` : "image.png")
-        : "index.html",
+        : ct.startsWith("video/") || VIDEO_EXTENSIONS.has(ext)
+          ? (ext ? `video.${ext}` : "video.mp4")
+          : "index.html",
   );
   const fileExt = extensionOf(filename);
 
   if (IMAGE_EXTENSIONS.has(fileExt) || ct.startsWith("image/")) {
     const imgError = validateBinaryFile(bytes, MAX_SITE_ZIP_BYTES);
     if (imgError) return imgError;
-    return { ok: true, zipBytes: zipSync({ [filename]: bytes }) };
+    return { ok: true, zipBytes: zipFiles({ [filename]: bytes }) };
+  }
+
+  if (VIDEO_EXTENSIONS.has(fileExt) || ct.startsWith("video/")) {
+    const vidError = validateBinaryFile(bytes, MAX_SITE_ZIP_BYTES);
+    if (vidError) return vidError;
+    return { ok: true, zipBytes: zipFiles({ [filename]: bytes }) };
   }
 
   if (fileExt === "html" || fileExt === "htm" || ct.includes("text/html")) {
     const htmlError = validateHtml(bytes);
     if (htmlError) return htmlError;
-    return { ok: true, zipBytes: zipSync({ [filename]: bytes }) };
+    return { ok: true, zipBytes: zipFiles({ [filename]: bytes }) };
   }
 
   if (fileExt === "md" || fileExt === "markdown" || ct.includes("markdown")) {
     const mdError = validateMarkdown(bytes);
     if (mdError) return mdError;
-    return { ok: true, zipBytes: zipSync({ [filename]: bytes }) };
+    return { ok: true, zipBytes: zipFiles({ [filename]: bytes }) };
   }
 
   if (ALLOWED_SINGLE_EXT.has(fileExt) || ct.includes("javascript") || ct.includes("css")) {
@@ -201,7 +220,7 @@ export function prepareCliUpload(
       return {
         ok: false,
         code: "unsupported_type",
-        message: "Unsupported file type. Use .html, .md, .js, .css, images, or .zip.",
+        message: "Unsupported file type. Use .html, .md, .js, .css, images, videos, or .zip.",
       };
     }
     const needsShell = fileExt === "js" || fileExt === "mjs" || fileExt === "css";
@@ -209,12 +228,12 @@ export function prepareCliUpload(
     if (needsShell) {
       files["index.html"] = new TextEncoder().encode(shellHtmlForAsset(filename));
     }
-    return { ok: true, zipBytes: zipSync(files) };
+    return { ok: true, zipBytes: zipFiles(files) };
   }
 
   return {
     ok: false,
     code: "unsupported_type",
-    message: "Unsupported upload. Send .html, .md, .js, .css, images, static assets, or a .zip site.",
+    message: "Unsupported upload. Send .html, .md, .js, .css, images, videos, static assets, or a .zip site.",
   };
 }

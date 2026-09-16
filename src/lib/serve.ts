@@ -1,7 +1,9 @@
 import { isMarkdownPath, markdownViewerHtml } from "./markdown-viewer.js";
-import { isImagePath, contentTypeFor } from "./mime.js";
+import { isImagePath, isVideoPath, contentTypeFor } from "./mime.js";
 import { imageViewerHtml } from "./image-viewer.js";
+import { videoViewerHtml } from "./video-viewer.js";
 import type { SiteMeta } from "./site.js";
+import { promisedExpiresAt, siteCacheMaxAge } from "./grace.js";
 
 export function siteBaseHref(slug: string): string {
   return `/s/${slug}/`;
@@ -120,8 +122,7 @@ export function maybeImageViewerResponse(
     });
   }
 
-  const remainingSeconds = Math.max(0, Math.floor((meta.expiresAt - Date.now()) / 1000));
-  const cacheSeconds = Math.min(300, remainingSeconds);
+  const cacheSeconds = siteCacheMaxAge(meta);
 
   const html = imageViewerHtml({
     slug,
@@ -129,7 +130,68 @@ export function maybeImageViewerResponse(
     rawUrl,
     fullRawUrl,
     filename,
-    expiresAt: meta.expiresAt,
+    expiresAt: promisedExpiresAt(meta),
+    createdAt: meta.createdAt,
+    bytes,
+    contentType,
+  });
+
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}`,
+      "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow",
+      "Referrer-Policy": "no-referrer",
+    },
+  });
+}
+
+export function buildRawVideoUrl(slug: string, pathname: string): string {
+  return `/s/${slug}/${pathname}?raw=1`;
+}
+
+export function maybeVideoViewerResponse(
+  slug: string,
+  pathname: string,
+  meta: SiteMeta,
+  bytes: number,
+  wantsRaw: boolean,
+  request: Request,
+): Response | null {
+  if (!isVideoPath(pathname) || wantsRaw) return null;
+
+  const accept = request.headers.get("accept") ?? "";
+  const fetchDest = request.headers.get("sec-fetch-dest") ?? "";
+
+  // If fetched as subresource/video (e.g. <video> or <source>) or client does not want HTML, return null to serve raw bytes
+  if (fetchDest === "video" || fetchDest === "audio" || !accept.includes("text/html")) {
+    return null;
+  }
+
+  const rawUrl = buildRawVideoUrl(slug, pathname);
+  const requestUrl = new URL(request.url);
+  const fullRawUrl = new URL(rawUrl, requestUrl.origin).href;
+  const filename = pathname.split("/").pop() ?? pathname;
+  const contentType = contentTypeFor(pathname);
+
+  if (request.method === "HEAD") {
+    return new Response(null, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex, nofollow" },
+    });
+  }
+
+  const cacheSeconds = siteCacheMaxAge(meta);
+
+  const html = videoViewerHtml({
+    slug,
+    pathname,
+    rawUrl,
+    fullRawUrl,
+    filename,
+    expiresAt: promisedExpiresAt(meta),
     createdAt: meta.createdAt,
     bytes,
     contentType,

@@ -114,6 +114,9 @@ const authed = await isAdminSession(Astro.request);
                   <option value="website">Website</option>
                   <option value="api">API</option>
                 </select>
+                <button class="btn btn--ghost" id="grace-filter-btn" type="button" aria-pressed="false" style="min-height: 38px; padding: 0 14px; font-size: 0.84rem;">
+                  Top 3 grace
+                </button>
               </div>
               <button class="btn btn--ghost" id="refresh-logs-btn" type="button" style="min-height: 38px; padding: 0 14px; font-size: 0.84rem;">
                 Refresh Logs
@@ -229,7 +232,8 @@ const authed = await isAdminSession(Astro.request);
               <h3 class="admin__modal-title">Upload Log Details</h3>
               <button class="btn-icon" id="close-modal-btn" type="button">&times;</button>
             </div>
-            <pre class="admin__code" style="max-height: 380px; overflow-y: auto;"><code id="modal-json"></code></pre>
+            <dl class="admin__detail-grid" id="modal-summary"></dl>
+            <pre class="admin__code" style="max-height: 280px; overflow-y: auto;"><code id="modal-json"></code></pre>
           </div>
         </div>
       )}
@@ -364,6 +368,7 @@ const authed = await isAdminSession(Astro.request);
       // Log Management System
       let currentPage = 1;
       let currentLimit = 10;
+      let graceOnly = false;
 
       function formatBytes(bytes: number): string {
         if (bytes === 0) return "0 B";
@@ -388,6 +393,13 @@ const authed = await isAdminSession(Astro.request);
         return { label: `${(remaining / 3600).toFixed(1)}h left`, active: true };
       }
 
+      function graceBadge(log: { graceActive?: boolean; expiresAt: number; ttlSeconds?: number }): string {
+        if (log.expiresAt <= Date.now()) return "";
+        if (log.graceActive) return `<span class="badge badge--grace">Top 3</span>`;
+        if (log.ttlSeconds === 3600) return `<span class="badge badge--active">1h</span>`;
+        return `<span class="badge badge--active">24h</span>`;
+      }
+
       async function loadLogs() {
         const tbody = document.getElementById("logs-tbody");
         const searchInput = document.getElementById("log-search") as HTMLInputElement;
@@ -401,6 +413,7 @@ const authed = await isAdminSession(Astro.request);
           limit: String(currentLimit),
           ...(search ? { search } : {}),
           ...(source !== "all" ? { source } : {}),
+          ...(graceOnly ? { grace: "1" } : {}),
         });
 
         const res = await fetch(`/api/admin/logs?${params.toString()}`);
@@ -455,6 +468,7 @@ const authed = await isAdminSession(Astro.request);
                   </td>
                   <td>
                     <span class="badge badge--${exp.active ? 'active' : 'expired'}">${exp.label}</span>
+                    ${graceBadge(log)}
                   </td>
                   <td style="text-align: right;">
                     <div class="admin__actions" style="justify-content: flex-end;">
@@ -495,6 +509,18 @@ const authed = await isAdminSession(Astro.request);
         const records = (window as any).__logRecords ?? [];
         const record = records.find((r: any) => r.slug === slug);
         if (!record) return;
+
+        const loc = [record.city, record.region, record.country].filter(Boolean).join(", ") || "unknown";
+        const summary = document.getElementById("modal-summary");
+        if (summary) {
+          summary.innerHTML = `
+            <div><dt>Client IP</dt><dd>${record.ip ?? "unknown"}</dd></div>
+            <div><dt>Location</dt><dd>${loc}</dd></div>
+            <div><dt>Source</dt><dd>${record.source ?? "website"}</dd></div>
+            <div><dt>User-Agent</dt><dd>${record.userAgent ?? "—"}</dd></div>
+            <div><dt>TTL</dt><dd>${record.ttlSeconds === 3600 ? "1h" : "24h"}${record.graceActive ? " · top-3 grace" : ""}</dd></div>
+          `;
+        }
 
         const modal = document.getElementById("details-modal");
         const code = document.getElementById("modal-json");
@@ -549,6 +575,15 @@ const authed = await isAdminSession(Astro.request);
       });
 
       document.getElementById("log-source")?.addEventListener("change", () => {
+        currentPage = 1;
+        loadLogs();
+      });
+
+      document.getElementById("grace-filter-btn")?.addEventListener("click", () => {
+        graceOnly = !graceOnly;
+        const btn = document.getElementById("grace-filter-btn");
+        btn?.setAttribute("aria-pressed", String(graceOnly));
+        btn?.classList.toggle("is-on", graceOnly);
         currentPage = 1;
         loadLogs();
       });

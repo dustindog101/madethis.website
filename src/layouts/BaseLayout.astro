@@ -82,6 +82,80 @@ const SITE = "https://madethis.website";
       const onScroll = () => nav?.classList.toggle("nav--scrolled", window.scrollY > 8);
       onScroll();
       addEventListener("scroll", onScroll, { passive: true });
+
+      // Admin access shortcuts (triple-tap logo/footer, or Ctrl/Cmd + Shift + A)
+      const triggerAdmin = () => {
+        if ("vibrate" in navigator) {
+          try {
+            navigator.vibrate(60);
+          } catch (_) {}
+        }
+        window.location.href = "/admin";
+      };
+
+      // 1. Triple-tap / click the logo
+      let logoClicks = 0;
+      let logoTimer: ReturnType<typeof setTimeout> | null = null;
+      const brand = document.querySelector<HTMLAnchorElement>(".brand");
+
+      brand?.addEventListener("click", (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (e.button && e.button !== 0)) {
+          return;
+        }
+        logoClicks++;
+        if (logoClicks >= 3) {
+          e.preventDefault();
+          if (logoTimer) clearTimeout(logoTimer);
+          logoClicks = 0;
+          triggerAdmin();
+          return;
+        }
+
+        e.preventDefault();
+        if (logoTimer) clearTimeout(logoTimer);
+        logoTimer = setTimeout(() => {
+          logoClicks = 0;
+          if (window.location.pathname === "/" || window.location.pathname === "") {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } else {
+            window.location.href = "/";
+          }
+        }, 350);
+      });
+
+      // 2. Triple-tap / click footer note
+      let footerClicks = 0;
+      let footerTimer: ReturnType<typeof setTimeout> | null = null;
+      const footerNote = document.querySelector(".footer__note");
+
+      footerNote?.addEventListener("click", () => {
+        footerClicks++;
+        if (footerClicks >= 3) {
+          if (footerTimer) clearTimeout(footerTimer);
+          footerClicks = 0;
+          triggerAdmin();
+          return;
+        }
+        if (footerTimer) clearTimeout(footerTimer);
+        footerTimer = setTimeout(() => {
+          footerClicks = 0;
+        }, 450);
+      });
+
+      // 3. Desktop hotkey: Cmd/Ctrl + Shift + A
+      window.addEventListener("keydown", (e) => {
+        if (
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLTextAreaElement ||
+          (e.target as HTMLElement)?.isContentEditable
+        ) {
+          return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "a" || e.key === "A")) {
+          e.preventDefault();
+          triggerAdmin();
+        }
+      });
     </script>
   </body>
 </html>

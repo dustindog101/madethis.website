@@ -80,7 +80,7 @@ GET /s/&#123;slug&#125;/readme.md?raw=1</code></pre>
         <h2 id="limits">Limits</h2>
         <ul class="docs__list">
           <li>8 MB packed zip · 500 files max</li>
-          <li>TTL: <code>3600</code> (1h) or <code>86400</code> (24h)</li>
+          <li>TTL: <code>3600</code> (1h) or <code>86400</code> (24h). Response <code>expiresAt</code> is the promised TTL.</li>
           <li>Rate limits: 10 uploads/hr per IP (web), 30/hr (CLI)</li>
         </ul>
 

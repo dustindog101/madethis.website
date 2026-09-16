@@ -5,30 +5,32 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage: madethis upload <file> [options]
+       madethis <file> [options]
 
 Environment:
-  MADETHIS_API_KEY   API key from https://www.madethis.website/admin (after login)
+  MADETHIS_API_KEY   API key from https://www.madethis.website/admin (default: configured system key)
   MADETHIS_URL       API base URL (default: https://www.madethis.website)
 
 Options:
   --ttl 1h|24h       How long the site stays live (default: 24h)
-  --name NAME        Filename inside the zip (for single-file uploads)
+  --name NAME        Filename inside the zip / custom filename
   --json             Print full JSON response
   -h, --help         Show this help
 
 Supported files:
-  .html .htm .md .js .mjs .css .png .jpg .jpeg .gif .webp .svg .avif .zip (full static sites)
+  .html .htm .md .js .mjs .css .png .jpg .jpeg .gif .webp .svg .avif .mp4 .webm .mov .zip (full static sites)
 
 Examples:
   madethis upload demo.html --ttl 1h
   madethis upload screenshot.png
-  madethis upload notes.md
-  madethis upload app.js
+  madethis my_plan.html
   madethis upload dist.zip
 EOF
 }
 
 BASE_URL="${MADETHIS_URL:-https://www.madethis.website}"
+DEFAULT_KEY="8d6a7f7e482e1ecb8ab76c1938ebb65dd264a4e18ed0b5e1f00c12eeca8eb545"
+API_KEY="${MADETHIS_API_KEY:-$DEFAULT_KEY}"
 TTL="86400"
 FILENAME=""
 JSON_OUT=0
@@ -38,7 +40,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     upload)
       shift
-      [[ $# -gt 0 ]] || { echo "error: missing file after upload" >&2; exit 1; }
+      [[ $# -gt 0 ]] || { echo "error: missing file after upload command" >&2; exit 1; }
       FILE="$1"
       shift
       ;;
@@ -63,7 +65,7 @@ while [[ $# -gt 0 ]]; do
         FILE="$1"
         shift
       else
-        echo "error: unknown argument: $1" >&2
+        echo "error: unknown argument or file not found: $1" >&2
         usage >&2
         exit 1
       fi
@@ -71,14 +73,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${MADETHIS_API_KEY:-}" ]]; then
-  echo "error: set MADETHIS_API_KEY — log in at ${BASE_URL}/admin to get one" >&2
+if [[ -z "$FILE" ]]; then
+  echo "error: no file specified to upload" >&2
+  usage >&2
   exit 1
 fi
 
-if [[ -z "$FILE" || ! -f "$FILE" ]]; then
-  echo "error: provide a readable file" >&2
-  usage >&2
+if [[ ! -f "$FILE" ]]; then
+  echo "error: file not found or not readable: $FILE" >&2
   exit 1
 fi
 
@@ -98,29 +100,48 @@ case "$EXT_LOWER" in
   avif) CT="image/avif" ;;
   ico) CT="image/x-icon" ;;
   bmp) CT="image/bmp" ;;
+  mp4) CT="video/mp4" ;;
+  webm) CT="video/webm" ;;
+  mov) CT="video/quicktime" ;;
+  m4v) CT="video/mp4" ;;
+  ogg|ogv) CT="video/ogg" ;;
   *) CT="application/octet-stream" ;;
 esac
 
-HEADERS=(-H "Authorization: Bearer ${MADETHIS_API_KEY}" -H "Content-Type: ${CT}")
+HEADERS=(-H "Authorization: Bearer ${API_KEY}" -H "Content-Type: ${CT}")
 if [[ -n "$FILENAME" ]]; then
   HEADERS+=(-H "X-Filename: ${FILENAME}")
-elif [[ -z "$FILENAME" ]]; then
+else
   HEADERS+=(-H "X-Filename: $(basename "$FILE")")
 fi
 
-RESP="$(curl -fsS -X POST "${BASE_URL}/api/cli/upload?ttl=${TTL}" "${HEADERS[@]}" --data-binary @"${FILE}")"
+# Execute upload and capture HTTP status code along with body
+RESPONSE_WITH_CODE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/api/cli/upload?ttl=${TTL}" "${HEADERS[@]}" --data-binary @"${FILE}")
+
+HTTP_CODE=$(echo "$RESPONSE_WITH_CODE" | tail -n 1)
+RESP=$(echo "$RESPONSE_WITH_CODE" | sed '$d')
+
+if [[ "$HTTP_CODE" -lt 200 || "$HTTP_CODE" -ge 300 ]]; then
+  echo "error: upload failed with HTTP $HTTP_CODE" >&2
+  if [[ -n "$RESP" ]]; then
+    echo "$RESP" >&2
+  fi
+  exit 1
+fi
 
 if [[ "$JSON_OUT" -eq 1 ]]; then
   echo "$RESP"
   exit 0
 fi
 
-URL="$(printf '%s' "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("fullUrl",""))')"
+# Extract fullUrl
+URL="$(printf '%s' "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("fullUrl",""))' 2>/dev/null || true)"
 if [[ -z "$URL" ]]; then
   URL="$(printf '%s' "$RESP" | sed -n 's/.*"fullUrl":"\([^"]*\)".*/\1/p')"
 fi
 
 if [[ -z "$URL" ]]; then
+  # Fallback to printing response if fullUrl could not be extracted
   echo "$RESP"
   exit 0
 fi

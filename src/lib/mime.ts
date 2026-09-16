@@ -23,6 +23,10 @@ const MIME_TYPES: Record<string, string> = {
   mp3: "audio/mpeg",
   mp4: "video/mp4",
   webm: "video/webm",
+  mov: "video/quicktime",
+  m4v: "video/mp4",
+  ogg: "video/ogg",
+  ogv: "video/ogg",
   woff: "font/woff",
   woff2: "font/woff2",
   ttf: "font/ttf",
@@ -73,4 +77,12 @@ export function isImagePath(pathname: string): boolean {
   const dot = pathname.lastIndexOf(".");
   if (dot < 0) return false;
   return IMAGE_EXTENSIONS.has(pathname.slice(dot + 1).toLowerCase());
+}
+
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogg", "ogv"]);
+
+export function isVideoPath(pathname: string): boolean {
+  const dot = pathname.lastIndexOf(".");
+  if (dot < 0) return false;
+  return VIDEO_EXTENSIONS.has(pathname.slice(dot + 1).toLowerCase());
 }

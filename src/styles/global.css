@@ -283,6 +283,9 @@ button {
   font-weight: 650;
   font-size: 1.08rem;
   letter-spacing: -0.01em;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .brand__mark {
@@ -988,6 +991,10 @@ button {
   font-size: 0.84rem;
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  cursor: default;
 }
 
 .footer__links {
@@ -1012,15 +1019,22 @@ button {
 }
 
 .footer__admin {
-  opacity: 0.18;
+  opacity: 0.22;
   font-size: 1.1rem;
   line-height: 1;
-  padding-inline: 4px !important;
-  min-height: auto !important;
+  padding: 8px 12px !important;
+  min-height: 44px !important;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  transition: opacity var(--speed-fast);
 }
 
-.footer__admin:hover {
-  opacity: 0.55;
+.footer__admin:hover,
+.footer__admin:focus-visible {
+  opacity: 0.65;
   color: var(--muted);
 }
 
@@ -1317,6 +1331,42 @@ button {
   background: rgba(255, 107, 94, 0.12);
   color: var(--danger);
   border: 1px solid rgba(255, 107, 94, 0.3);
+}
+
+.badge--grace {
+  background: rgba(129, 161, 193, 0.14);
+  color: #81a1c1;
+  border: 1px solid rgba(129, 161, 193, 0.35);
+}
+
+#grace-filter-btn[aria-pressed="true"] {
+  border-color: rgba(129, 161, 193, 0.55);
+  color: #81a1c1;
+}
+
+.admin__detail-grid {
+  display: grid;
+  gap: 10px 16px;
+  margin: 0 0 16px;
+  font-size: 0.82rem;
+}
+
+.admin__detail-grid > div {
+  display: grid;
+  gap: 2px;
+}
+
+.admin__detail-grid dt {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin__detail-grid dd {
+  margin: 0;
+  word-break: break-word;
 }
 
 /* actions */

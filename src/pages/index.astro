@@ -68,8 +68,8 @@ const faqs = [
 
         <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop a folder, zip, or HTML file to host it">
           <span class="drop-zone__hand" aria-hidden="true">👆</span>
-          <h3 id="drop-title">Drop your site or image here</h3>
-          <p id="drop-sub">Drop a folder, .zip, image, or .html file, or paste with Ctrl+V.</p>
+          <h3 id="drop-title">Drop your site, video, or image here</h3>
+          <p id="drop-sub">Drop a folder, .zip, video, image, or .html file, or paste with Ctrl+V.</p>
           <span class="drop-zone__hint" id="drop-hint">click to browse · drag anywhere · paste clipboard</span>
         </div>
 
@@ -129,7 +129,7 @@ const faqs = [
 
     <!-- Hidden file inputs -->
     <input type="file" id="file-folder" multiple webkitdirectory="" hidden />
-    <input type="file" id="file-file" accept=".zip,.html,.htm,.md,.markdown,.png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.bmp,.ico,image/*" multiple hidden />
+    <input type="file" id="file-file" accept=".zip,.html,.htm,.md,.markdown,.png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.bmp,.ico,.mp4,.webm,.mov,.m4v,.ogg,image/*,video/*" multiple hidden />
 
     <!-- Clipboard paste detection modal -->
     <dialog id="paste-modal" class="paste-modal" closedby="any" aria-labelledby="paste-modal-title">

@@ -14,6 +14,8 @@ export const GET: APIRoute = async ({ request, url }) => {
   const limit = parseInt(url.searchParams.get("limit") ?? "10", 10);
   const search = url.searchParams.get("search") ?? undefined;
   const source = url.searchParams.get("source") ?? undefined;
+  const graceParam = url.searchParams.get("grace") ?? "";
+  const grace = graceParam === "1" || graceParam.toLowerCase() === "true";
 
   try {
     const result = await getUploadLogs({
@@ -21,6 +23,7 @@ export const GET: APIRoute = async ({ request, url }) => {
       limit: Number.isNaN(limit) ? 10 : limit,
       search,
       source,
+      grace: grace || undefined,
     });
 
     return json({ ok: true, ...result });

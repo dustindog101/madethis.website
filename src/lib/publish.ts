@@ -1,8 +1,16 @@
 import { newSlug } from "./ids.js";
 import { MAX_FILES_PER_SITE, MAX_SITE_ZIP_BYTES } from "./limits.js";
 import { readZipEntries } from "./zip.js";
-import { createSite, readSiteMeta, resolveHomepage, type CreateSiteOptions } from "./site.js";
-import { recordUploadLog } from "./logs.js";
+import {
+  createSite,
+  listLive24hSiteMetas,
+  readSiteMeta,
+  resolveHomepage,
+  updateSiteExpiry,
+  type CreateSiteOptions,
+} from "./site.js";
+import { recordUploadLog, updateUploadLogExpiry } from "./logs.js";
+import { computeGraceDisplacement, isStandard24hTtl, promisedExpiresAt } from "./grace.js";
 
 export interface PublishedSite {
   slug: string;
@@ -41,11 +49,28 @@ export async function publishSiteFromZip(
 
   const meta = await createSite(slug, zipBytes, ttlSeconds, entries.length, homepage, options);
 
+  if (isStandard24hTtl(meta.ttlSeconds)) {
+    try {
+      const live = await listLive24hSiteMetas();
+      const { displaced } = computeGraceDisplacement(live, Date.now());
+      await Promise.all(
+        displaced.map(async (row) => {
+          await updateSiteExpiry(row.slug, row.expiresAt, row.graceActive);
+          await updateUploadLogExpiry(row.slug, row.expiresAt, row.graceActive).catch(() => {});
+        }),
+      );
+    } catch {
+      // Next 24h upload repairs extra grace rows if this pass fails.
+    }
+  }
+
   await recordUploadLog({
     id: meta.slug,
     slug: meta.slug,
     createdAt: meta.createdAt,
     expiresAt: meta.expiresAt,
+    ttlSeconds: meta.ttlSeconds,
+    graceActive: meta.graceActive,
     bytes: meta.bytes,
     files: meta.files,
     homepage: meta.homepage,
@@ -60,9 +85,8 @@ export async function publishSiteFromZip(
   return {
     slug,
     url: `/s/${slug}/`,
-    expiresAt: meta.expiresAt,
+    expiresAt: promisedExpiresAt(meta),
     files: meta.files,
     homepage: meta.homepage,
   };
 }
-

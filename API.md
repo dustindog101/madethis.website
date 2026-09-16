@@ -17,7 +17,9 @@ All responses are JSON unless noted. Errors look like:
 | Serve a live site | `GET /s/{slug}/` | None |
 | Get API key | `GET /admin` → sign in | Admin login |
 
-**TTL:** `3600` (1 hour) or `86400` (24 hours).
+**TTL:** `3600` (1 hour) or `86400` (24 hours). `expiresAt` in API responses
+is the promised expiry (`createdAt + ttl`). The host may keep a 24h site
+slightly longer as an internal buffer; do not rely on more than the requested TTL.
 
 **Limits:** 8 MB packed zip · 500 files · 3 MB per upload chunk.
 

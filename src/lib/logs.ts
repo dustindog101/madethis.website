@@ -7,6 +7,8 @@ export interface UploadLogRecord {
   slug: string;
   createdAt: number;
   expiresAt: number;
+  ttlSeconds?: number;
+  graceActive?: boolean;
   bytes: number;
   files: number;
   homepage: string | null;
@@ -34,6 +36,7 @@ export interface GetLogsOptions {
   limit?: number;
   search?: string;
   source?: string;
+  grace?: boolean;
 }
 
 export interface PaginatedLogsResult {
@@ -81,6 +84,8 @@ async function reconstructLogsFromSites(): Promise<UploadLogRecord[]> {
           slug: meta.slug,
           createdAt: meta.createdAt,
           expiresAt: meta.expiresAt,
+          ttlSeconds: meta.ttlSeconds,
+          graceActive: meta.graceActive,
           bytes: meta.bytes,
           files: meta.files,
           homepage: meta.homepage,
@@ -127,11 +132,27 @@ export async function deleteUploadLogEntry(slug: string): Promise<void> {
   await saveLogs(filtered);
 }
 
+export async function updateUploadLogExpiry(
+  slug: string,
+  expiresAt: number,
+  graceActive: boolean,
+): Promise<void> {
+  const logs = await readAllLogs();
+  let changed = false;
+  const next = logs.map((log) => {
+    if (log.slug !== slug) return log;
+    changed = true;
+    return { ...log, expiresAt, graceActive };
+  });
+  if (changed) await saveLogs(next);
+}
+
 export async function getUploadLogs(options: GetLogsOptions = {}): Promise<PaginatedLogsResult> {
   const page = Math.max(1, options.page ?? 1);
   const limit = Math.max(1, Math.min(100, options.limit ?? 10));
   const search = options.search?.trim().toLowerCase() ?? "";
   const sourceFilter = options.source?.trim().toLowerCase() ?? "";
+  const graceOnly = options.grace === true;
 
   const allLogs = await readAllLogs();
   const now = Date.now();
@@ -152,6 +173,10 @@ export async function getUploadLogs(options: GetLogsOptions = {}): Promise<Pagin
 
   if (sourceFilter && sourceFilter !== "all") {
     filtered = filtered.filter((l) => l.source === sourceFilter);
+  }
+
+  if (graceOnly) {
+    filtered = filtered.filter((l) => l.graceActive === true && l.expiresAt > now);
   }
 
   if (search) {

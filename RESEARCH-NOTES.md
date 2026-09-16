@@ -58,3 +58,18 @@ Companion product: cybershare.dev (Astro 7, Geist fonts) — stack matched.
   wildcard subdomain remains the long-term isolation boundary.
 - Hobby free-tier Blob caps (5 GB storage / bandwidth) — keep TTLs short,
   cron aggressive.
+
+## Write-time top-3 grace (2026-08-27)
+
+- Product promise stays 1h / 24h. API `expiresAt` and the dropzone countdown
+  use `createdAt + requested ttl`.
+- Internally, a 24h upload stores `expiresAt = createdAt + 36h` and
+  `graceActive = true`. Ranking uses live `.meta.json` blobs at publish time,
+  not `upload-logs.json` (logs retain deleted rows).
+- Rank 4+ 24h sites with extra lifetime are demoted on that write: back to
+  24h if still inside the first day, or `expiresAt = now` if already past 24h.
+  1h uploads are excluded. No retroactive grant, no promotion on delete.
+- `s-maxage` is capped at 60s while `graceActive` so edge cache cannot outlive
+  displacement by up to an hour.
+- Sources: prior review of this repo's serve hot path (blob get of meta+zip,
+  no list) and Vercel Blob list cost on the request path.

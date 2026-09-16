@@ -1,6 +1,8 @@
 /* madethis.website uploader — drag, pack, chunk-up, paste, expire */
 
-const MAX_ZIP_BYTES = 8 * 1024 * 1024;
+import { jszipFileOptions } from "../lib/zip-compression";
+
+const MAX_ZIP_BYTES = 128 * 1024 * 1024;
 const MAX_FILES = 500;
 const CHUNK_SIZE = 3 * 1024 * 1024;
 
@@ -187,7 +189,7 @@ async function handleDropped(items: DragItem[]): Promise<void> {
     });
 
   for (const item of items) {
-    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    const entry = (item.webkitGetAsEntry ? item.webkitGetAsEntry() : null) as FsNode | null;
     if (entry) {
       try {
         if (entry.isFile && entry.file) {
@@ -208,7 +210,7 @@ async function handleDropped(items: DragItem[]): Promise<void> {
   if (files.length > 0) {
     await runUpload(files);
   } else {
-    showError("No valid files found. Please upload a folder, .zip, image, or .html file.");
+    showError("No valid files found. Please upload a folder, .zip, video, image, or .html file.");
   }
 }
 
@@ -322,9 +324,10 @@ els.pasteUploadBtn?.addEventListener("click", () => {
 
 // Light-dismiss fallback for <dialog> on browsers lacking closedby support
 if (els.pasteModal && !("closedBy" in HTMLDialogElement.prototype)) {
-  els.pasteModal.addEventListener("click", (event: MouseEvent) => {
-    if (event.target !== els.pasteModal) return;
-    const rect = els.pasteModal.getBoundingClientRect();
+  const pasteModal = els.pasteModal;
+  pasteModal.addEventListener("click", (event: MouseEvent) => {
+    if (event.target !== pasteModal) return;
+    const rect = pasteModal.getBoundingClientRect();
     const isDialogContent =
       rect.top <= event.clientY &&
       event.clientY <= rect.top + rect.height &&
@@ -376,7 +379,7 @@ async function buildZip(files: RawFile[]): Promise<Blob> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   for (const { name, file } of files) {
-    zip.file(name, file);
+    zip.file(name, file, jszipFileOptions(name, 6));
   }
   return zip.generateAsync(
     {
@@ -547,6 +550,8 @@ function startCountdown(expiresAt: number): void {
 startCountdown.timer = 0;
 
 async function sha256Hex(buffer: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", buffer as unknown as ArrayBufferView);
+  const copy = new Uint8Array(buffer.byteLength);
+  copy.set(buffer);
+  const digest = await crypto.subtle.digest("SHA-256", copy);
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }

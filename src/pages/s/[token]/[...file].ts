@@ -1,10 +1,11 @@
 import type { APIRoute } from "astro";
 import { readSiteMeta, isExpired, readSiteZip } from "../../../lib/site";
+import { siteCacheMaxAge } from "../../../lib/grace";
 import { validSlug } from "../../../lib/ids";
-import { safeSitePath, contentTypeFor } from "../../../lib/mime";
+import { safeSitePath, contentTypeFor, isVideoPath } from "../../../lib/mime";
 import { readZipEntries } from "../../../lib/zip";
 import { MAX_FILES_PER_SITE } from "../../../lib/limits";
-import { resolveEntry, maybeMarkdownViewerResponse, maybeImageViewerResponse, maybeTrailingSlashRedirect, injectSiteBaseTag, siteBaseHref, isSiteHtmlPath } from "../../../lib/serve";
+import { resolveEntry, maybeMarkdownViewerResponse, maybeImageViewerResponse, maybeVideoViewerResponse, maybeTrailingSlashRedirect, injectSiteBaseTag, siteBaseHref, isSiteHtmlPath } from "../../../lib/serve";
 
 export const prerender = false;
 
@@ -111,20 +112,95 @@ export const GET: APIRoute = async ({ request, params }) => {
   const imgView = maybeImageViewerResponse(slug, wanted.pathname, meta, wanted.data.byteLength, wantsRaw, request);
   if (imgView) return imgView;
 
+  const vidView = maybeVideoViewerResponse(slug, wanted.pathname, meta, wanted.data.byteLength, wantsRaw, request);
+  if (vidView) return vidView;
+
   const contentType = contentTypeFor(wanted.pathname);
-  const remainingSeconds = Math.max(0, Math.floor((meta.expiresAt - Date.now()) / 1000));
-  const cacheSeconds = Math.min(3600, remainingSeconds);
+  const cacheSeconds = siteCacheMaxAge(meta);
 
   let body: Uint8Array = wanted.data;
   if (isSiteHtmlPath(wanted.pathname)) {
     body = injectSiteBaseTag(body, siteBaseHref(slug));
   }
 
-  return new Response(body as BodyInit, {
+  const rangeHeader = request.headers.get("range");
+  const totalLength = body.length;
+  const isVideo = isVideoPath(wanted.pathname);
+  // Cap chunk size to 3 MB to stay well within serverless function payload limits
+  const MAX_CHUNK = 3 * 1024 * 1024;
+
+  if (rangeHeader && rangeHeader.startsWith("bytes=")) {
+    const parts = rangeHeader.slice(6).split("-");
+    const rawStart = parts[0]?.trim();
+    const rawEnd = parts[1]?.trim();
+
+    let start = rawStart ? parseInt(rawStart, 10) : NaN;
+    let end = rawEnd ? parseInt(rawEnd, 10) : NaN;
+
+    if (isNaN(start)) {
+      start = Math.max(0, totalLength - (isNaN(end) ? 0 : end));
+      end = totalLength - 1;
+    } else if (isNaN(end)) {
+      end = totalLength - 1;
+    }
+
+    if (start >= totalLength || start > end || start < 0) {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          "Content-Range": `bytes */${totalLength}`,
+          "Accept-Ranges": "bytes",
+        },
+      });
+    }
+
+    end = Math.min(end, totalLength - 1);
+    if (end - start + 1 > MAX_CHUNK) {
+      end = start + MAX_CHUNK - 1;
+    }
+
+    const chunk = body.subarray(start, end + 1);
+    return new Response(request.method === "HEAD" ? null : (chunk as BodyInit), {
+      status: 206,
+      headers: {
+        "Content-Type": contentType,
+        "Content-Range": `bytes ${start}-${end}/${totalLength}`,
+        "Content-Length": String(chunk.length),
+        "Accept-Ranges": "bytes",
+        "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}`,
+        "X-Content-Type-Options": "nosniff",
+        "X-Robots-Tag": "noindex, nofollow",
+        "Referrer-Policy": "no-referrer",
+        "Last-Modified": new Date(meta.createdAt).toUTCString(),
+      },
+    });
+  }
+
+  if (isVideo && totalLength > MAX_CHUNK) {
+    const end = Math.min(totalLength - 1, MAX_CHUNK - 1);
+    const chunk = body.subarray(0, end + 1);
+    return new Response(request.method === "HEAD" ? null : (chunk as BodyInit), {
+      status: 206,
+      headers: {
+        "Content-Type": contentType,
+        "Content-Range": `bytes 0-${end}/${totalLength}`,
+        "Content-Length": String(chunk.length),
+        "Accept-Ranges": "bytes",
+        "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}`,
+        "X-Content-Type-Options": "nosniff",
+        "X-Robots-Tag": "noindex, nofollow",
+        "Referrer-Policy": "no-referrer",
+        "Last-Modified": new Date(meta.createdAt).toUTCString(),
+      },
+    });
+  }
+
+  return new Response(request.method === "HEAD" ? null : (body as BodyInit), {
     status: 200,
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(body.length),
+      "Accept-Ranges": "bytes",
       "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}`,
       "X-Content-Type-Options": "nosniff",
       "X-Robots-Tag": "noindex, nofollow",

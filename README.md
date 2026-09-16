@@ -84,12 +84,19 @@ src/lib/*                 storage(Blob/local), slugs, mime, safety
 ```
 
 Uploads are chunked because Vercel caps request bodies at 4.5 MB; chunks
-are 3 MB. Sites capped at **8 MB packed**, **500 files**.
+are 3 MB. Sites capped at **8 MB packed**, **500 files**. Text assets are
+DEFLATE-packed; already-compressed formats (JPEG, PNG, WebP, WOFF2, ZIP)
+are stored uncompressed in the archive.
 
 ## Limits and honesty
 
 - Free, anonymous, no account — anything you can build gets the same
   first-class treatment: 1h/24h TTL.
+- The public contract is the TTL you pick. API `expiresAt` and the dropzone
+  countdown are `createdAt + ttl`. 24h sites among the three most recent
+  live 24h uploads may remain until 36h as a best-effort host buffer;
+  a newer 24h upload can take that extra window away. 1h uploads never
+  get it. Do not advertise 36h as a user-facing guarantee.
 - Expired sites are hard-deleted (cleanup cron once daily; the serve route also
   refuses anything past expiry), then 404 brand page.
 - `robots.txt` blocks crawling of `/s/` and `/api/`.
