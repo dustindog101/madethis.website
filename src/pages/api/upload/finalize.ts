@@ -127,6 +127,9 @@ export const POST: APIRoute = async ({ request }) => {
     if (message === "site_too_large") {
       return error(413, "site_too_large");
     }
+    if (message === "slug_taken") {
+      return error(409, "slug_taken", "That slug is already taken.");
+    }
     if (message === "no_slug_available") {
       return error(503, "no_slug_available");
     }

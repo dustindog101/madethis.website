@@ -138,6 +138,9 @@ export const POST: APIRoute = async ({ request, url }) => {
     if (message === "not_a_zip") {
       return error(422, "not_a_zip", "That file isn't a readable ZIP archive.");
     }
+    if (message === "slug_taken") {
+      return error(409, "slug_taken", "That slug is already taken. Pick another with --slug.");
+    }
     return error(503, "publish_failed", "Could not publish the site.");
   }
 };

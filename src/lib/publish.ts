@@ -38,6 +38,11 @@ export async function publishSiteFromZip(
   const homepage = resolveHomepage(entries);
 
   let slug = options?.slug && validSlug(options.slug) ? options.slug : "";
+  if (slug) {
+    // Custom slugs are caller-chosen: never silently overwrite a live site.
+    const existing = await readSiteMeta(slug);
+    if (existing) throw new Error("slug_taken");
+  }
   if (!slug) {
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate = newSlug();
