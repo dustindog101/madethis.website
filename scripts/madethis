@@ -18,7 +18,7 @@ Options:
   -h, --help         Show this help
 
 Supported files:
-  .html .htm .md .js .mjs .css .png .jpg .jpeg .gif .webp .svg .avif .mp4 .webm .mov .zip (full static sites)
+  .html .htm .md .js .mjs .css .png .jpg .jpeg .gif .webp .svg .avif .pdf .mp4 .webm .mov .zip (full static sites)
 
 Examples:
   madethis upload demo.html --ttl 1h
@@ -28,11 +28,20 @@ Examples:
 EOF
 }
 
-BASE_URL="${MADETHIS_URL:-https://www.madethis.website}"
+if [[ -z "${MADETHIS_URL:-}" ]]; then
+  if curl -s --connect-timeout 0.5 http://localhost:4321 >/dev/null 2>&1; then
+    BASE_URL="http://localhost:4321"
+  else
+    BASE_URL="https://www.madethis.website"
+  fi
+else
+  BASE_URL="$MADETHIS_URL"
+fi
 DEFAULT_KEY="8d6a7f7e482e1ecb8ab76c1938ebb65dd264a4e18ed0b5e1f00c12eeca8eb545"
 API_KEY="${MADETHIS_API_KEY:-$DEFAULT_KEY}"
 TTL="86400"
 FILENAME=""
+SLUG=""
 JSON_OUT=0
 FILE=""
 
@@ -49,8 +58,14 @@ while [[ $# -gt 0 ]]; do
       case "${1:-}" in
         1h|3600) TTL="3600" ;;
         24h|86400|1d) TTL="86400" ;;
-        *) echo "error: --ttl must be 1h or 24h" >&2; exit 1 ;;
+        7d|604800|7days|1w) TTL="604800" ;;
+        *) echo "error: --ttl must be 1h, 24h, or 7d" >&2; exit 1 ;;
       esac
+      shift
+      ;;
+    --slug)
+      shift
+      SLUG="${1:-}"
       shift
       ;;
     --name)
@@ -105,10 +120,14 @@ case "$EXT_LOWER" in
   mov) CT="video/quicktime" ;;
   m4v) CT="video/mp4" ;;
   ogg|ogv) CT="video/ogg" ;;
+  pdf) CT="application/pdf" ;;
   *) CT="application/octet-stream" ;;
 esac
 
 HEADERS=(-H "Authorization: Bearer ${API_KEY}" -H "Content-Type: ${CT}")
+if [[ -n "$SLUG" ]]; then
+  HEADERS+=(-H "X-Slug: ${SLUG}")
+fi
 if [[ -n "$FILENAME" ]]; then
   HEADERS+=(-H "X-Filename: ${FILENAME}")
 else

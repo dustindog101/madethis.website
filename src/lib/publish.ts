@@ -1,4 +1,4 @@
-import { newSlug } from "./ids.js";
+import { newSlug, validSlug } from "./ids.js";
 import { MAX_FILES_PER_SITE, MAX_SITE_ZIP_BYTES } from "./limits.js";
 import { readZipEntries } from "./zip.js";
 import {
@@ -23,9 +23,10 @@ export interface PublishedSite {
 export async function publishSiteFromZip(
   zipBytes: Uint8Array,
   ttlSeconds: number,
-  options?: CreateSiteOptions,
+  options?: CreateSiteOptions & { maxZipBytes?: number; slug?: string },
 ): Promise<PublishedSite> {
-  if (zipBytes.byteLength === 0 || zipBytes.byteLength > MAX_SITE_ZIP_BYTES) {
+  const ceiling = options?.maxZipBytes ?? MAX_SITE_ZIP_BYTES;
+  if (zipBytes.byteLength === 0 || zipBytes.byteLength > ceiling) {
     throw new Error("site_too_large");
   }
 
@@ -36,13 +37,15 @@ export async function publishSiteFromZip(
 
   const homepage = resolveHomepage(entries);
 
-  let slug = "";
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const candidate = newSlug();
-    const existing = await readSiteMeta(candidate);
-    if (!existing) {
-      slug = candidate;
-      break;
+  let slug = options?.slug && validSlug(options.slug) ? options.slug : "";
+  if (!slug) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = newSlug();
+      const existing = await readSiteMeta(candidate);
+      if (!existing) {
+        slug = candidate;
+        break;
+      }
     }
   }
   if (!slug) throw new Error("no_slug_available");

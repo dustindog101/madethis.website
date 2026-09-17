@@ -5,9 +5,9 @@ import { zipSync } from "fflate";
 
 const BASE_URL = process.env.MADETHIS_URL || "https://www.madethis.website";
 const CHUNK_SIZE = 3 * 1024 * 1024;
-const TTL = 86400; // 24 hours
+const DEFAULT_TTL = 604800; // 7 days
 
-async function uploadFile(filePath) {
+async function uploadFile(filePath, customSlug = undefined, ttl = DEFAULT_TTL) {
   console.log(`\nReading ${filePath}...`);
   const filename = basename(filePath);
   const fileBytes = new Uint8Array(await readFile(filePath));
@@ -19,11 +19,11 @@ async function uploadFile(filePath) {
   });
   console.log(`Packed zip size: ${(zipBytes.byteLength / (1024 * 1024)).toFixed(2)} MB`);
 
-  console.log("Initiating upload with 24h TTL...");
+  console.log(`Initiating upload with ${ttl}s (${Math.round(ttl / 86400)}d) TTL...`);
   const initRes = await fetch(`${BASE_URL}/api/upload/init`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ totalBytes: zipBytes.byteLength, ttlSeconds: TTL }),
+    body: JSON.stringify({ totalBytes: zipBytes.byteLength, ttlSeconds: ttl }),
   });
   const initData = await initRes.json();
   if (!initRes.ok) {
@@ -76,8 +76,9 @@ async function uploadFile(filePath) {
     body: JSON.stringify({
       uploadId,
       totalChunks,
-      ttlSeconds: TTL,
+      ttlSeconds: ttl,
       sha256,
+      slug: customSlug,
     }),
   });
   const finData = await finRes.json();
@@ -86,27 +87,25 @@ async function uploadFile(filePath) {
   }
 
   const fullUrl = `${BASE_URL}/s/${finData.slug}/`;
-  console.log(`SUCCESS! Live link (24h): ${fullUrl}`);
+  console.log(`SUCCESS! Live link (${Math.round(ttl / 86400)}d): ${fullUrl}`);
   return { ...finData, fullUrl };
 }
 
 async function main() {
-  const files = process.argv.slice(2);
-  if (files.length === 0) {
-    console.error("Usage: node upload-video.mjs <file1> <file2> ...");
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    console.error("Usage: node upload-video.mjs <file> [slug] [ttlSeconds]");
     process.exit(1);
   }
 
-  const results = [];
-  for (const file of files) {
-    const res = await uploadFile(file);
-    results.push(res);
-  }
+  // Support syntax:
+  // node upload-video.mjs <file> [slug]
+  // or node upload-video.mjs --file=<file> --slug=<slug>
+  const file = args[0];
+  const slug = args[1] && !args[1].startsWith("-") ? args[1] : undefined;
+  const ttl = args[2] ? Number(args[2]) : DEFAULT_TTL;
 
-  console.log("\n================ SUMMARY ================");
-  for (const r of results) {
-    console.log(`${r.homepage || r.slug}: ${r.fullUrl}`);
-  }
+  await uploadFile(file, slug, ttl);
 }
 
 main().catch((err) => {

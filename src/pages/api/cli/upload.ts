@@ -6,7 +6,12 @@ import { extractClientContext, hashIp } from "../../../lib/ip";
 import { checkCliUploadLimits, rateLimitHeaders } from "../../../lib/ratelimit";
 import { parseTtlSeconds, prepareCliUpload } from "../../../lib/cli-upload";
 import { publishSiteFromZip } from "../../../lib/publish";
-import { DEFAULT_TTL_SECONDS, UPLOAD_TTL_OPTIONS } from "../../../lib/limits";
+import {
+  DEFAULT_TTL_SECONDS,
+  OWNER_MAX_SITE_ZIP_BYTES,
+  UPLOAD_TTL_OPTIONS,
+} from "../../../lib/limits";
+import { validSlug } from "../../../lib/ids";
 import { storageReady } from "../../../lib/storage";
 
 export const prerender = false;
@@ -41,6 +46,21 @@ export const POST: APIRoute = async ({ request, url }) => {
     return rateLimited(rate.resetAt, "Too many CLI uploads. Try again later.");
   }
 
+  // Owner tier: this route requires API key or admin session, so every
+  // caller here is the owner. Reject absurd bodies before buffering them
+  // into serverless memory (zip bombs / oversized mp4+pdf).
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > OWNER_MAX_SITE_ZIP_BYTES + 1024 * 1024
+  ) {
+    return error(
+      413,
+      "site_too_large",
+      `Upload must be at most ${OWNER_MAX_SITE_ZIP_BYTES} bytes.`,
+    );
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
   const ttlRaw = url.searchParams.get("ttl");
   let ttlSeconds = parseTtlSeconds(ttlRaw) ?? DEFAULT_TTL_SECONDS;
@@ -71,17 +91,31 @@ export const POST: APIRoute = async ({ request, url }) => {
     bytes = new Uint8Array(await request.arrayBuffer());
   }
 
-  const prepared = prepareCliUpload(bytes, filename, contentType);
+  // Belt-and-suspenders: header can be spoofed or absent (chunked).
+  if (bytes.byteLength > OWNER_MAX_SITE_ZIP_BYTES + 1024 * 1024) {
+    return error(
+      413,
+      "site_too_large",
+      `Upload must be at most ${OWNER_MAX_SITE_ZIP_BYTES} bytes.`,
+    );
+  }
+
+  const prepared = prepareCliUpload(bytes, filename, contentType, { isOwner: true });
   if (!prepared.ok) return error(400, prepared.code, prepared.message);
+
+  const requestedSlug = request.headers.get("x-slug") || url.searchParams.get("slug") || undefined;
+  const safeSlug = requestedSlug && validSlug(requestedSlug) ? requestedSlug : undefined;
 
   try {
     const published = await publishSiteFromZip(prepared.zipBytes, ttlSeconds, {
+      slug: safeSlug,
       ip: context.ip,
       source: context.source,
       country: context.country,
       city: context.city,
       region: context.region,
       userAgent: context.userAgent,
+      maxZipBytes: OWNER_MAX_SITE_ZIP_BYTES,
     });
     return json(
       {

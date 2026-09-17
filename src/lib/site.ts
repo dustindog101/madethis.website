@@ -1,5 +1,5 @@
 import { storage } from "./storage.js";
-import { siteZipPath, siteMetaPath, SITE_PREFIX, ONE_HOUR_TTL_SECONDS } from "./limits";
+import { siteZipPath, siteMetaPath, SITE_PREFIX, ONE_HOUR_TTL_SECONDS, SEVEN_DAYS_TTL_SECONDS } from "./limits";
 import { validSlug } from "./ids";
 import type { ZipEntry } from "./zip";
 import { deleteUploadLogEntry } from "./logs";
@@ -49,7 +49,9 @@ export interface CreateSiteOptions {
 }
 
 function asUploadTtl(ttlSeconds: number): UploadTtlSeconds {
-  return ttlSeconds === ONE_HOUR_TTL_SECONDS ? ONE_HOUR_TTL_SECONDS : 86400;
+  if (ttlSeconds === ONE_HOUR_TTL_SECONDS) return ONE_HOUR_TTL_SECONDS;
+  if (ttlSeconds === SEVEN_DAYS_TTL_SECONDS) return SEVEN_DAYS_TTL_SECONDS;
+  return 86400;
 }
 
 export async function createSite(

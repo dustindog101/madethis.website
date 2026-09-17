@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { APIRoute } from "astro";
 import { json, error } from "../../../lib/http";
-import { validUploadId } from "../../../lib/ids";
+import { validUploadId, validSlug } from "../../../lib/ids";
 import {
   MAX_CHUNK_BYTES,
   MAX_SITE_ZIP_BYTES,
@@ -20,6 +20,7 @@ interface FinalizeBody {
   totalChunks?: number;
   ttlSeconds?: number;
   sha256?: string;
+  slug?: string;
 }
 
 const MAX_TOTAL_CHUNKS = 64;
@@ -92,7 +93,9 @@ export const POST: APIRoute = async ({ request }) => {
   const userAgent = initialContext?.userAgent || currentContext.userAgent;
 
   try {
+    const requestedSlug = typeof body.slug === "string" && validSlug(body.slug) ? body.slug : undefined;
     const published = await publishSiteFromZip(zipBytes, ttlSeconds, {
+      slug: requestedSlug,
       ip,
       source,
       country,

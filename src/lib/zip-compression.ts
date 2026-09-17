@@ -16,6 +16,7 @@ const STORE_EXTENSIONS = new Set([
   "ogg",
   "ogv",
   "mp3",
+  "pdf",
 ]);
 
 function extensionOf(filename: string): string {

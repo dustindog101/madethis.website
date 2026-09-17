@@ -1,7 +1,8 @@
 export const MAX_CHUNK_BYTES = 3 * 1024 * 1024;
 export const MAX_SITE_ZIP_BYTES = 128 * 1024 * 1024;
 export const MAX_FILES_PER_SITE = 500;
-export const UPLOAD_TTL_OPTIONS = [3600, 86400] as const;
+export const SEVEN_DAYS_TTL_SECONDS = 604800 as const;
+export const UPLOAD_TTL_OPTIONS = [3600, 86400, 604800] as const;
 export const DEFAULT_TTL_SECONDS = 86400;
 export const ONE_HOUR_TTL_SECONDS = 3600;
 export const STANDARD_24H_TTL_SECONDS = 86400;
@@ -14,6 +15,17 @@ export const RATE_GLOBAL_PER_HOUR = 200;
 export const RATE_IP_PER_HOUR = 10;
 export const RATE_IP_PER_DAY = 50;
 export const RATE_CLI_PER_HOUR = 30;
+
+/**
+ * Tiered upload ceilings.
+ * CLI route is owner-only (API key or admin session) so it uses OWNER caps.
+ * A future public route should use PUBLIC caps and pass isOwner:false.
+ */
+export const OWNER_MAX_SITE_ZIP_BYTES = 25 * 1024 * 1024;
+export const OWNER_MAX_SINGLE_FILE_BYTES = 20 * 1024 * 1024;
+export const PUBLIC_MAX_SITE_ZIP_BYTES = 4 * 1024 * 1024;
+export const PUBLIC_MAX_SINGLE_FILE_BYTES = 3 * 1024 * 1024;
+export const PUBLIC_MAX_TEXT_BYTES = 512 * 1024;
 
 export const SITE_PREFIX = "sites/";
 export const TMP_PREFIX = "tmp/";

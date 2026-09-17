@@ -637,10 +637,12 @@ export function imageViewerHtml(options: ImageViewerOptions): string {
       countdownEl.textContent = "Expired";
       return;
     }
-    const h = String(Math.floor(diff / 3600000)).padStart(2, "0");
-    const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
-    const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
-    countdownEl.textContent = h + ":" + m + ":" + s;
+    const totalSec = Math.floor(diff / 1000);
+    const d = Math.floor(totalSec / 86400);
+    const h = String(Math.floor((totalSec % 86400) / 3600)).padStart(2, "0");
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+    const s = String(totalSec % 60).padStart(2, "0");
+    countdownEl.textContent = d > 0 ? (d + "d " + h + ":" + m + ":" + s) : (h + ":" + m + ":" + s);
   }
   tickCountdown();
   setInterval(tickCountdown, 1000);
