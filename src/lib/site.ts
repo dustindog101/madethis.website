@@ -1,14 +1,17 @@
 import { storage } from "./storage.js";
-import { siteZipPath, siteMetaPath, SITE_PREFIX, ONE_HOUR_TTL_SECONDS, SEVEN_DAYS_TTL_SECONDS } from "./limits";
+import { siteZipPath, siteMetaPath, SITE_PREFIX, ONE_HOUR_TTL_SECONDS, SEVEN_DAYS_TTL_SECONDS, UPLOAD_TTL_OPTIONS } from "./limits";
 import { validSlug } from "./ids";
 import type { ZipEntry } from "./zip";
-import { deleteUploadLogEntry } from "./logs";
+import { deleteUploadLogEntry, updateUploadLogExpiry, updateUploadLogVisit } from "./logs";
 import {
   internalExpiresAt,
   isStandard24hTtl,
   normalizeSiteMetaFields,
   type UploadTtlSeconds,
 } from "./grace.js";
+
+/** Minimum gap between visit-counter blob writes per slug (free-tier safe). */
+export const VISIT_WRITE_THROTTLE_MS = 5 * 60 * 1000;
 
 export interface SiteMeta {
   slug: string;
@@ -25,6 +28,9 @@ export interface SiteMeta {
   country?: string;
   city?: string;
   region?: string;
+  /** Best-effort view counter (throttled writes, see recordSiteVisit). */
+  visits?: number;
+  lastVisitAt?: number | null;
 }
 
 export function resolveHomepage(entries: ZipEntry[]): string | null {
@@ -81,6 +87,8 @@ export async function createSite(
     country: options?.country,
     city: options?.city,
     region: options?.region,
+    visits: 0,
+    lastVisitAt: null,
   };
   const metaBytes = new TextEncoder().encode(JSON.stringify(meta));
   await storage.put(siteMetaPath(slug), metaBytes, "application/json");
@@ -104,7 +112,9 @@ export async function readSiteMeta(slug: string): Promise<SiteMeta | null> {
       ttlSeconds: parsed.ttlSeconds,
       graceActive: parsed.graceActive,
     });
-    return { ...parsed, slug, createdAt: parsed.createdAt, expiresAt: parsed.expiresAt, ...fields } as SiteMeta;
+    const visits = typeof parsed.visits === "number" && parsed.visits >= 0 ? Math.floor(parsed.visits) : 0;
+    const lastVisitAt = typeof parsed.lastVisitAt === "number" ? parsed.lastVisitAt : null;
+    return { ...parsed, slug, createdAt: parsed.createdAt, expiresAt: parsed.expiresAt, ...fields, visits, lastVisitAt } as SiteMeta;
   } catch {
     return null;
   }
@@ -147,6 +157,55 @@ export async function updateSiteExpiry(slug: string, expiresAt: number, graceAct
   await storage.put(siteMetaPath(slug), new TextEncoder().encode(JSON.stringify(next)), "application/json", {
     allowOverwrite: true,
   });
+}
+
+/**
+ * Best-effort visit counter. Throttled to ≤1 blob write per 5 min per slug
+ * so popular sites don't burn free-tier write ops. Never throws.
+ * Returns the (possibly updated) visit count, or null when the site is gone.
+ */
+export async function recordSiteVisit(slug: string, now = Date.now()): Promise<number | null> {
+  try {
+    const meta = await readSiteMeta(slug);
+    if (!meta || isExpired(meta, now)) return meta ? (meta.visits ?? 0) : null;
+    const visits = meta.visits ?? 0;
+    if (meta.lastVisitAt !== null && meta.lastVisitAt !== undefined && now - meta.lastVisitAt < VISIT_WRITE_THROTTLE_MS && visits > 0) {
+      return visits;
+    }
+    const nextVisits = visits + 1;
+    const next: SiteMeta = { ...meta, visits: nextVisits, lastVisitAt: now };
+    await storage.put(siteMetaPath(slug), new TextEncoder().encode(JSON.stringify(next)), "application/json", {
+      allowOverwrite: true,
+    });
+    // Mirror into the admin log index on the same throttled window (best-effort).
+    await updateUploadLogVisit(slug, nextVisits, now).catch(() => {});
+    return nextVisits;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extend (or shorten) a site's lifetime from *now*. Validates TTL against
+ * UPLOAD_TTL_OPTIONS. Revives an expired-but-not-yet-cleaned site.
+ * Updates both the site meta and the admin log index. Throws on bad input.
+ */
+export async function extendSiteTtl(slug: string, ttlSeconds: number, now = Date.now()): Promise<SiteMeta> {
+  if (!validSlug(slug)) throw new Error("invalid_slug");
+  if (!UPLOAD_TTL_OPTIONS.includes(ttlSeconds as (typeof UPLOAD_TTL_OPTIONS)[number])) {
+    throw new Error("invalid_ttl");
+  }
+  const meta = await readSiteMeta(slug);
+  if (!meta) throw new Error("not_found");
+  const ttl = ttlSeconds as UploadTtlSeconds;
+  const expiresAt = internalExpiresAt(now, ttl);
+  const graceActive = isStandard24hTtl(ttl);
+  const next: SiteMeta = { ...meta, ttlSeconds: ttl, expiresAt, graceActive };
+  await storage.put(siteMetaPath(slug), new TextEncoder().encode(JSON.stringify(next)), "application/json", {
+    allowOverwrite: true,
+  });
+  await updateUploadLogExpiry(slug, expiresAt, graceActive).catch(() => {});
+  return next;
 }
 
 /**

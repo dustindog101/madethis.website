@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { readSiteMeta, isExpired, readSiteZip } from "../../../lib/site";
+import { readSiteMeta, isExpired, readSiteZip, recordSiteVisit, VISIT_WRITE_THROTTLE_MS } from "../../../lib/site";
 import { siteCacheMaxAge } from "../../../lib/grace";
 import { validSlug } from "../../../lib/ids";
 import { safeSitePath, contentTypeFor, isVideoPath } from "../../../lib/mime";
@@ -104,6 +104,17 @@ export const GET: APIRoute = async ({ request, params }) => {
 
   if (!wanted) {
     return brandedPage("File Not Found", "The requested file was not found in this site archive.", 404);
+  }
+
+  // Best-effort visit counter: GET only (no HEAD), no Range follow-ups
+  // (video scrubbing must not spam writes). Throttled to ≤1 write per
+  // 5 min per slug so popular sites stay free-tier safe. Awaited only on
+  // the rare write path; throttled hits cost zero extra blob ops.
+  if (request.method === "GET" && !request.headers.get("range")) {
+    const last = meta.lastVisitAt ?? null;
+    if (last === null || Date.now() - last >= VISIT_WRITE_THROTTLE_MS) {
+      await recordSiteVisit(slug).catch(() => {});
+    }
   }
 
   const mdView = maybeMarkdownViewerResponse(slug, wanted.pathname, wantsRaw, request.method);

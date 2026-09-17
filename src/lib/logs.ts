@@ -18,12 +18,19 @@ export interface UploadLogRecord {
   country?: string;
   city?: string;
   region?: string;
+  /** Best-effort view counter, mirrored from site meta (throttled). */
+  visits?: number;
+  lastVisitAt?: number | null;
 }
 
 export interface UploadLogMetrics {
   totalUploads: number;
   activeSites: number;
+  /** Sum over ALL log rows (includes expired). Kept for compat. */
   totalBytes: number;
+  /** Sum over live sites only — the truthful storage meter. */
+  activeBytes: number;
+  totalVisits: number;
   sources: {
     website: number;
     cli: number;
@@ -37,6 +44,7 @@ export interface GetLogsOptions {
   search?: string;
   source?: string;
   grace?: boolean;
+  status?: "active" | "expired" | "all";
 }
 
 export interface PaginatedLogsResult {
@@ -95,6 +103,8 @@ async function reconstructLogsFromSites(): Promise<UploadLogRecord[]> {
           country: meta.country,
           city: meta.city,
           region: meta.region,
+          visits: meta.visits ?? 0,
+          lastVisitAt: meta.lastVisitAt ?? null,
         });
       }
     }
@@ -147,23 +157,46 @@ export async function updateUploadLogExpiry(
   if (changed) await saveLogs(next);
 }
 
+export async function updateUploadLogVisit(
+  slug: string,
+  visits: number,
+  lastVisitAt: number,
+): Promise<void> {
+  const logs = await readAllLogs();
+  let changed = false;
+  const next = logs.map((log) => {
+    if (log.slug !== slug) return log;
+    changed = true;
+    return { ...log, visits, lastVisitAt };
+  });
+  if (changed) await saveLogs(next);
+}
+
 export async function getUploadLogs(options: GetLogsOptions = {}): Promise<PaginatedLogsResult> {
   const page = Math.max(1, options.page ?? 1);
   const limit = Math.max(1, Math.min(100, options.limit ?? 10));
-  const search = options.search?.trim().toLowerCase() ?? "";
+  const search = options.search?.trim().toLowerCase().slice(0, 100) ?? "";
   const sourceFilter = options.source?.trim().toLowerCase() ?? "";
   const graceOnly = options.grace === true;
+  const statusFilter = options.status === "active" || options.status === "expired" ? options.status : "all";
 
   const allLogs = await readAllLogs();
   const now = Date.now();
 
   let activeSites = 0;
   let totalBytes = 0;
+  let activeBytes = 0;
+  let totalVisits = 0;
   const sources = { website: 0, cli: 0, api: 0 };
 
   for (const log of allLogs) {
-    if (log.expiresAt > now) activeSites++;
+    const live = log.expiresAt > now;
+    if (live) {
+      activeSites++;
+      activeBytes += log.bytes ?? 0;
+    }
     totalBytes += log.bytes ?? 0;
+    totalVisits += log.visits ?? 0;
     if (log.source === "cli") sources.cli++;
     else if (log.source === "api") sources.api++;
     else sources.website++;
@@ -173,6 +206,12 @@ export async function getUploadLogs(options: GetLogsOptions = {}): Promise<Pagin
 
   if (sourceFilter && sourceFilter !== "all") {
     filtered = filtered.filter((l) => l.source === sourceFilter);
+  }
+
+  if (statusFilter === "active") {
+    filtered = filtered.filter((l) => l.expiresAt > now);
+  } else if (statusFilter === "expired") {
+    filtered = filtered.filter((l) => l.expiresAt <= now);
   }
 
   if (graceOnly) {
@@ -208,6 +247,8 @@ export async function getUploadLogs(options: GetLogsOptions = {}): Promise<Pagin
       totalUploads: allLogs.length,
       activeSites,
       totalBytes,
+      activeBytes,
+      totalVisits,
       sources,
     },
   };

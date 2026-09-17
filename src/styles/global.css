@@ -238,7 +238,7 @@ button {
 }
 
 .btn--ghost {
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hair);
   color: var(--text);
   background: rgba(255, 255, 255, 0.03);
 }
@@ -261,7 +261,7 @@ button {
 }
 
 .nav--scrolled {
-  border-bottom-color: var(--hairline);
+  border-bottom-color: var(--hair);
 }
 
 .nav__inner {
@@ -788,7 +788,7 @@ button {
 
 .step {
   background: var(--panel);
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hair);
   border-radius: var(--radius);
   padding: 26px 24px;
   position: relative;
@@ -850,7 +850,7 @@ button {
 
 .tile {
   background: var(--panel);
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hair);
   border-radius: var(--radius);
   padding: 26px 24px;
 }
@@ -880,8 +880,8 @@ button {
 /* ribbon (countdown strip between sections) */
 
 .ribbon {
-  border-top: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
   background: var(--ink-2);
   padding: 26px 22px;
   overflow: hidden;
@@ -922,7 +922,7 @@ button {
 
 .faq details {
   background: var(--panel);
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hair);
   border-radius: var(--radius);
   padding: 4px 22px;
   transition: border-color 0.2s ease;
@@ -971,7 +971,7 @@ button {
 /* footer */
 
 .footer {
-  border-top: 1px solid var(--hairline);
+  border-top: 1px solid var(--hair);
   padding: 42px 22px 64px;
   margin-top: clamp(48px, 8vw, 90px);
 }
@@ -1811,5 +1811,267 @@ dialog.paste-modal::backdrop {
     transition: none !important;
     animation: none !important;
     transform: none !important;
+  }
+}
+
+/* ============================================================
+   Admin dashboard — hardening + future-proof tabs (2026-09)
+   - No inline styles: all sizes live here.
+   - Tabs are data-driven (see TABS in admin/index.astro):
+     add a tab id + a section#tab-<id> and it just works.
+   ============================================================ */
+
+.admin__head-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.84rem;
+}
+
+.admin__toolbar-btn {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.84rem;
+  flex-shrink: 0;
+}
+
+.admin__page-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+}
+
+.admin__limit-select {
+  background: var(--ink-2);
+  border: 1px solid var(--hair-strong);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.admin__page-num {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0 6px;
+}
+
+.admin__tab[aria-selected="true"] {
+  color: var(--amber);
+  background: var(--panel);
+  border-color: var(--hair);
+  border-bottom-color: var(--panel);
+  font-weight: 600;
+}
+
+.admin__filters {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: 280px;
+  flex-wrap: wrap;
+}
+
+.admin__filter-select {
+  background: var(--ink-2);
+  border: 1px solid var(--hair-strong);
+  border-radius: 999px;
+  color: var(--text);
+  padding: 9px 14px;
+  font-size: 0.84rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.admin__search-input {
+  flex: 1;
+  min-width: 160px;
+  background: var(--ink-2);
+  border: 1px solid var(--hair-strong);
+  border-radius: 999px;
+  color: var(--text);
+  padding: 9px 16px;
+  font-size: 0.86rem;
+  font-family: var(--font-body);
+}
+
+.admin__toggle-btn {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.84rem;
+}
+
+.admin__toggle-btn[aria-pressed="true"] {
+  border-color: rgba(129, 161, 193, 0.55);
+  color: #81a1c1;
+}
+
+.admin__table-state {
+  text-align: center;
+  padding: 32px;
+  color: var(--muted);
+}
+
+.admin__table-state--error {
+  text-align: center;
+  color: var(--danger);
+  padding: 24px;
+}
+
+.admin__cell-main {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.admin__cell-actions {
+  text-align: right;
+}
+
+.admin__actions {
+  justify-content: flex-end;
+}
+
+.admin__btn-text {
+  width: auto;
+  min-width: 32px;
+  padding: 0 8px;
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  height: 32px;
+}
+
+/* API keys */
+.admin__keylist {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin__keyrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--ink-2);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.admin__keyname {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin__keyprefix {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.admin__keysub {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--faint);
+  margin-top: 2px;
+}
+
+.admin__keyrow-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin__create-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.admin__input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--ink-2);
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.admin__showonce {
+  margin-top: 14px;
+  border: 1px solid rgba(255, 178, 62, 0.4);
+  background: rgba(255, 178, 62, 0.07);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.admin__showonce code {
+  display: block;
+  word-break: break-all;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  margin: 8px 0;
+}
+
+.admin__hint {
+  font-size: 0.82rem;
+  color: var(--faint);
+  margin: 8px 0 0;
+}
+
+.admin__modal-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.admin__modal-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin__extend-select {
+  background: var(--ink-2);
+  border: 1px solid var(--hair-strong);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 760px) {
+  .admin__table thead {
+    display: none;
+  }
+  .admin__table,
+  .admin__table tbody,
+  .admin__table tr,
+  .admin__table td {
+    display: block;
+    width: 100%;
+  }
+  .admin__table tr {
+    border-bottom: 1px solid var(--hair);
+    padding: 6px 0;
+  }
+  .admin__table td {
+    border-bottom: none;
+    padding: 8px 18px;
+  }
+  .admin__cell-actions {
+    text-align: left;
+  }
+  .admin__actions {
+    justify-content: flex-start;
   }
 }

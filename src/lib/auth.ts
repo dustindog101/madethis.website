@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { getStoredApiKey } from "./apikey.js";
+import { hasAnyApiKey, touchApiKeyLastUsed, verifyStoredApiKey } from "./apikey.js";
 import { hasAdminAuth } from "./admin-auth.js";
 
 const MIN_KEY_LENGTH = 32;
@@ -25,11 +25,10 @@ export async function cliUploadEnabled(): Promise<boolean> {
   const envKey = process.env.CLI_API_KEY;
   if (typeof envKey === "string" && envKey.length >= MIN_KEY_LENGTH) return true;
   if (await hasAdminAuth()) return true;
-  const stored = await getStoredApiKey();
-  return typeof stored === "string" && stored.length >= MIN_KEY_LENGTH;
+  return hasAnyApiKey();
 }
 
-/** Constant-time Bearer token check against env or blob-stored key. */
+/** Constant-time Bearer token check against env or blob-stored key hashes. */
 export async function verifyCliApiKey(request: Request): Promise<boolean> {
   const provided = extractBearer(request);
   if (!provided || provided.length < MIN_KEY_LENGTH) return false;
@@ -39,8 +38,12 @@ export async function verifyCliApiKey(request: Request): Promise<boolean> {
     return true;
   }
 
-  const stored = await getStoredApiKey();
-  if (stored && safeEqual(provided, stored)) return true;
+  const matched = await verifyStoredApiKey(provided);
+  if (matched) {
+    // Best-effort, throttled to ≤1 blob write/hour/key — never blocks auth.
+    void touchApiKeyLastUsed(matched.id);
+    return true;
+  }
 
   return false;
 }

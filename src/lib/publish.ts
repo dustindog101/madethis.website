@@ -88,6 +88,8 @@ export async function publishSiteFromZip(
     country: meta.country,
     city: meta.city,
     region: meta.region,
+    visits: 0,
+    lastVisitAt: null,
   }).catch(() => {});
 
   return {
