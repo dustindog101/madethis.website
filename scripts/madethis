@@ -28,15 +28,7 @@ Examples:
 EOF
 }
 
-if [[ -z "${MADETHIS_URL:-}" ]]; then
-  if curl -s --connect-timeout 0.5 http://localhost:4321 >/dev/null 2>&1; then
-    BASE_URL="http://localhost:4321"
-  else
-    BASE_URL="https://www.madethis.website"
-  fi
-else
-  BASE_URL="$MADETHIS_URL"
-fi
+BASE_URL="${MADETHIS_URL:-https://www.madethis.website}"
 DEFAULT_KEY="8d6a7f7e482e1ecb8ab76c1938ebb65dd264a4e18ed0b5e1f00c12eeca8eb545"
 API_KEY="${MADETHIS_API_KEY:-$DEFAULT_KEY}"
 TTL="86400"
