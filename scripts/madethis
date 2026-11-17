@@ -127,7 +127,39 @@ else
 fi
 
 # Execute upload and capture HTTP status code along with body
-RESPONSE_WITH_CODE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/api/cli/upload?ttl=${TTL}" "${HEADERS[@]}" --data-binary @"${FILE}")
+upload() {
+  curl -sS --connect-timeout 10 --max-time 120 -w "\n%{http_code}" \
+    -X POST "${BASE_URL}/api/cli/upload?ttl=${TTL}" "${HEADERS[@]}" --data-binary @"${FILE}"
+}
+
+if RESPONSE_WITH_CODE=$(upload); then
+  :
+else
+  CURL_CODE=$?
+  # Retry only failures before HTTP upload; retrying a lost response could duplicate a site.
+  case "$CURL_CODE" in
+    6|7|35)
+      if [[ "$BASE_URL" == "https://www.madethis.website" && -z "${MADETHIS_URL:-}" ]]; then
+        echo "warning: cannot connect to madethis.website; trying its Vercel address" >&2
+        BASE_URL="https://madethis-website.vercel.app"
+        if RESPONSE_WITH_CODE=$(upload); then
+          :
+        else
+          CURL_CODE=$?
+          echo "error: upload connection failed (curl $CURL_CODE)" >&2
+          exit "$CURL_CODE"
+        fi
+      else
+        echo "error: upload connection failed (curl $CURL_CODE)" >&2
+        exit "$CURL_CODE"
+      fi
+      ;;
+    *)
+      echo "error: upload connection failed (curl $CURL_CODE)" >&2
+      exit "$CURL_CODE"
+      ;;
+  esac
+fi
 
 HTTP_CODE=$(echo "$RESPONSE_WITH_CODE" | tail -n 1)
 RESP=$(echo "$RESPONSE_WITH_CODE" | sed '$d')

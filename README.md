@@ -65,6 +65,8 @@ export MADETHIS_API_KEY='key-from-admin-panel'
 ./scripts/madethis upload dist.zip
 ```
 
+The Bash CLI reports connection errors and automatically tries `https://madethis-website.vercel.app` if the default domain fails during DNS, connection, or TLS setup. This keeps uploads usable on networks filtering the custom domain, and returns a link on the working hostname. HTTP errors and failures after a request may have reached the server are not retried. An explicit `MADETHIS_URL` disables this fallback.
+
 CLI accepts `.html`, `.md`, `.png`/`.jpg`/`.webp`/`.gif`/`.svg`, `.js`/`.css` (auto-wrapped with `index.html`), and `.zip` static sites up to 8 MB.
 
 **API reference:** [/docs/api](https://www.madethis.website/docs/api) · [API.md](./API.md) (full examples in Python, JS, curl)
